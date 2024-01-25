@@ -14,11 +14,11 @@ fileReader.onloadend = () => {
   cartridgeBytes = new Uint8Array(fileReader.result) 
 }
 
-let regA=0
-let regX=0
-let regY=0
-let regS=0
-let regPC=0///
+let regA=0 // 8bit
+let regX=0 // 8bit
+let regY=0 // 8bit
+let regS=0 // 8bit
+let regPC=0 // 16bit
 let flagC=0
 let flagZ=0
 let flagI=0
@@ -26,6 +26,20 @@ let flagD=0
 let flagB=0
 let flagV=0
 let flagN=0
+
+function getRegP() {
+  return flagN<<7 | flagV<<6 | 1<<5 | flagB<<4 | flagD<<3 | flagI<<2 | flagZ<<1 | flagC
+}
+
+function setRegP(value) {
+  flagN = (value & (1 << 7)) !== 0
+  flagV = (value & (1 << 6)) !== 0
+  flagB = (value & (1 << 4)) !== 0
+  flagD = (value & (1 << 3)) !== 0
+  flagI = (value & (1 << 2)) !== 0
+  flagZ = (value & (1 << 1)) !== 0
+  flagC = (value & 1) !== 0
+}
 
 let RamBytes = new Uint8Array(128) // TODO init 0 or garbage?
 
@@ -111,12 +125,13 @@ operand: (number)
 */
 
 
-setInterval(() => {
+let mainLoop = setInterval(() => {
   for (let colorClock = 0; colorClock<262*228; colorClock++) {
     if (colorClock%3==0) {
       executeAfter--
       if (executeAfter==0) {
         executeInst()
+        fetchDecodeNextInst()
       }
     }
   }
@@ -161,16 +176,20 @@ function executeInst() {
     storeValueUsingInst(currentInst, regY)
   }
   else if (opcode=='PHA') {
-
+    setByteToMemory(regS, regA, true)
+    regS--
   }
   else if (opcode=='PHP') {
-
+    setByteToMemory(regS, getRegP(), true)
+    regS--
   }
   else if (opcode=='PLA') {
-
+    regS++
+    getByteFromMemory(regS, true)
   }
   else if (opcode=='PLP') {
-
+    regS++
+    setRegP( getByteFromMemory(regS, true) )
   }
   else if (opcode=='ADC') {
     regA += loadValueUsingInst(currentInst) + flagC
@@ -261,25 +280,13 @@ function executeInst() {
   else if (opcode=='BCC') {
 
   }
-  else if (opcode=='BLT') {
-
-  }
   else if (opcode=='BCS') {
-
-  }
-  else if (opcode=='BGE') {
 
   }
   else if (opcode=='BNE') {
 
   }
-  else if (opcode=='BZC') {
-
-  }
   else if (opcode=='BEQ') {
-
-  }
-  else if (opcode=='BZS') {
 
   }
   else if (opcode=='BRK') {
@@ -411,3 +418,230 @@ function normalize(val, bitLength) {
   let max = 2**bitLength
   return (val % max + max) % max
 }
+
+function fetchDecodeNextInst() {
+  let firstByte = getByteFromMemory(regPC, true)
+
+  let insts = [
+    {firstByte: 0xA8,	opcode: 'TAY',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xAA,	opcode: 'TAX',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xBA,	opcode: 'TSX',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x98,	opcode: 'TYA',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x8A,	opcode: 'TXA',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x9A,	opcode: 'TXS',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xA9,	opcode: 'LDA',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xA2,	opcode: 'LDX',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xA0,	opcode: 'LDY',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xA5,	opcode: 'LDA',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xB5,	opcode: 'LDA',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0xAD,	opcode: 'LDA',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xBD,	opcode: 'LDA',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0xB9,	opcode: 'LDA',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0xA1,	opcode: 'LDA',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0xB1,	opcode: 'LDA',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0xA6,	opcode: 'LDX',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xB6,	opcode: 'LDX',	addressingMode: 'ZeroPageY',	cycles: 4},
+    {firstByte: 0xAE,	opcode: 'LDX',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xBE,	opcode: 'LDX',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0xA4,	opcode: 'LDY',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xB4,	opcode: 'LDY',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0xAC,	opcode: 'LDY',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xBC,	opcode: 'LDY',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0x85,	opcode: 'STA',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x95,	opcode: 'STA',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x8D,	opcode: 'STA',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x9D,	opcode: 'STA',	addressingMode: 'AbsoluteX',	cycles: 5},
+    {firstByte: 0x99,	opcode: 'STA',	addressingMode: 'AbsoluteY',	cycles: 5},
+    {firstByte: 0x81,	opcode: 'STA',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0x91,	opcode: 'STA',	addressingMode: 'IndirectY',	cycles: 6},
+    {firstByte: 0x86,	opcode: 'STX',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x96,	opcode: 'STX',	addressingMode: 'ZeroPageY',	cycles: 4},
+    {firstByte: 0x8E,	opcode: 'STX',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x84,	opcode: 'STY',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x94,	opcode: 'STY',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x8C,	opcode: 'STY',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x48,	opcode: 'PHA',	addressingMode: 'Implied',	cycles: 3},
+    {firstByte: 0x08,	opcode: 'PHP',	addressingMode: 'Implied',	cycles: 3},
+    {firstByte: 0x68,	opcode: 'PLA',	addressingMode: 'Implied',	cycles: 4},
+    {firstByte: 0x28,	opcode: 'PLP',	addressingMode: 'Implied',	cycles: 4},
+    {firstByte: 0x69,	opcode: 'ADC',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0x65,	opcode: 'ADC',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x75,	opcode: 'ADC',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x6D,	opcode: 'ADC',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x7D,	opcode: 'ADC',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0x79,	opcode: 'ADC',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0x61,	opcode: 'ADC',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0x71,	opcode: 'ADC',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0xE9,	opcode: 'SBC',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xE5,	opcode: 'SBC',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xF5,	opcode: 'SBC',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0xED,	opcode: 'SBC',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xFD,	opcode: 'SBC',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0xF9,	opcode: 'SBC',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0xE1,	opcode: 'SBC',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0xF1,	opcode: 'SBC',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0x29,	opcode: 'AND',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0x25,	opcode: 'AND',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x35,	opcode: 'AND',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x2D,	opcode: 'AND',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x3D,	opcode: 'AND',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0x39,	opcode: 'AND',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0x21,	opcode: 'AND',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0x31,	opcode: 'AND',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0x49,	opcode: 'EOR',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0x45,	opcode: 'EOR',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x55,	opcode: 'EOR',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x4D,	opcode: 'EOR',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x5D,	opcode: 'EOR',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0x59,	opcode: 'EOR',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0x41,	opcode: 'EOR',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0x51,	opcode: 'EOR',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0x09,	opcode: 'ORA',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0x05,	opcode: 'ORA',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x15,	opcode: 'ORA',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0x0D,	opcode: 'ORA',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x1D,	opcode: 'ORA',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0x19,	opcode: 'ORA',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0x01,	opcode: 'ORA',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0x11,	opcode: 'ORA',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0xC9,	opcode: 'CMP',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xC5,	opcode: 'CMP',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xD5,	opcode: 'CMP',	addressingMode: 'ZeroPageX',	cycles: 4},
+    {firstByte: 0xCD,	opcode: 'CMP',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xDD,	opcode: 'CMP',	addressingMode: 'AbsoluteX',	cycles: 4},
+    {firstByte: 0xD9,	opcode: 'CMP',	addressingMode: 'AbsoluteY',	cycles: 4},
+    {firstByte: 0xC1,	opcode: 'CMP',	addressingMode: 'IndirectX',	cycles: 6},
+    {firstByte: 0xD1,	opcode: 'CMP',	addressingMode: 'IndirectY',	cycles: 5},
+    {firstByte: 0xE0,	opcode: 'CPX',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xE4,	opcode: 'CPX',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xEC,	opcode: 'CPX',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xC0,	opcode: 'CPY',	addressingMode: 'Immediate',	cycles: 2},
+    {firstByte: 0xC4,	opcode: 'CPY',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0xCC,	opcode: 'CPY',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0x24,	opcode: 'BIT',	addressingMode: 'ZeroPage',	cycles: 3},
+    {firstByte: 0x2C,	opcode: 'BIT',	addressingMode: 'Absolute',	cycles: 4},
+    {firstByte: 0xE6,	opcode: 'INC',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0xF6,	opcode: 'INC',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0xEE,	opcode: 'INC',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0xFE,	opcode: 'INC',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0xE8,	opcode: 'INX',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xC8,	opcode: 'INY',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xC6,	opcode: 'DEC',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0xD6,	opcode: 'DEC',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0xCE,	opcode: 'DEC',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0xDE,	opcode: 'DEC',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0xCA,	opcode: 'DEX',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x88,	opcode: 'DEY',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x0A,	opcode: 'ASL',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x06,	opcode: 'ASL',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0x16,	opcode: 'ASL',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0x0E,	opcode: 'ASL',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0x1E,	opcode: 'ASL',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0x4A,	opcode: 'LSR',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x46,	opcode: 'LSR',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0x56,	opcode: 'LSR',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0x4E,	opcode: 'LSR',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0x5E,	opcode: 'LSR',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0x2A,	opcode: 'ROL',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x26,	opcode: 'ROL',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0x36,	opcode: 'ROL',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0x2E,	opcode: 'ROL',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0x3E,	opcode: 'ROL',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0x6A,	opcode: 'ROR',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x66,	opcode: 'ROR',	addressingMode: 'ZeroPage',	cycles: 5},
+    {firstByte: 0x76,	opcode: 'ROR',	addressingMode: 'ZeroPageX',	cycles: 6},
+    {firstByte: 0x6E,	opcode: 'ROR',	addressingMode: 'Absolute',	cycles: 6},
+    {firstByte: 0x7E,	opcode: 'ROR',	addressingMode: 'AbsoluteX',	cycles: 7},
+    {firstByte: 0x4C,	opcode: 'JMP',	addressingMode: 'Immediate2',	cycles: 3},
+    {firstByte: 0x6C,	opcode: 'JMP',	addressingMode: 'Absolute',	cycles: 5},
+    {firstByte: 0x20,	opcode: 'JSR',	addressingMode: 'Immediate2',	cycles: 6},
+    {firstByte: 0x40,	opcode: 'RTI',	addressingMode: 'Implied',	cycles: 6},
+    {firstByte: 0x60,	opcode: 'RTS',	addressingMode: 'Implied',	cycles: 6},
+    {firstByte: 0x10,	opcode: 'BPL',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x30,	opcode: 'BMI',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x50,	opcode: 'BVC',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x70,	opcode: 'BVS',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x90,	opcode: 'BCC',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0xB0,	opcode: 'BCS',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0xD0,	opcode: 'BNE',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0xF0,	opcode: 'BEQ',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x00,	opcode: 'BRK',	addressingMode: 'Implied',	cycles: 7},
+    {firstByte: 0x18,	opcode: 'CLC',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x58,	opcode: 'CLI',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xD8,	opcode: 'CLD',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xB8,	opcode: 'CLV',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x38,	opcode: 'SEC',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0x78,	opcode: 'SEI',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xF8,	opcode: 'SED',	addressingMode: 'Implied',	cycles: 2},
+    {firstByte: 0xEA,	opcode: 'NOP',	addressingMode: 'Implied',	cycles: 2},
+  ]
+
+  // TODO: illegal insts, including NOPS with different first bytes
+  
+  let addressingModeToOperandLength = {
+    Implied: 0,
+    Immediate: 1,
+    Immediate2: 2,
+    ZeroPage: 1,
+    ZeroPageX: 1,
+    ZeroPageY: 1,
+    Absolute: 2,
+    AbsoluteX: 2,
+    AbsoluteY: 2,
+    IndirectX: 1,
+    IndirectY: 1
+  }
+
+  let inst
+  for (let i = 0; i<insts.length; i++) {
+    if (insts[i].firstByte == firstByte) {
+      inst = insts[i]
+      break
+    }
+  }
+  if (!inst) {
+    console.error(`Unknown opcode: ${firstByte}, pc:${regPC}`)
+    clearInterval(mainLoop)
+  }
+
+  currentInst.opcode = inst.opcode
+  currentInst.addressingMode = inst.addressingMode
+
+  if (addressingModeToOperandLength[inst.addressingMode]==0) {
+    currentInst.operand = 0
+    regPC++
+  }
+  else if (addressingModeToOperandLength[inst.addressingMode]==1) {
+    currentInst.operand = getByteFromMemory(regPC+1, true)
+    // TODO: if pc is FFFF then this should return to 0 or what?
+    regPC+=2
+  }
+  else if (addressingModeToOperandLength[inst.addressingMode]==2) {
+    currentInst.operand = getByteFromMemory(regPC+1, true)<<8 | getByteFromMemory(regPC+2, true)
+    regPC+=3
+  }
+  else {
+    unreachable()
+  }
+
+  // TODO: for jumps and branches pc needs to change
+
+  executeAfter = inst.cycles //// TODO: test the page boundary
+  if (['AbsoluteX', 'AbsoluteY', 'IndirectY'].includes(inst.addressingMode) &&
+  !['STA','STX','STY','INC','INX','INY','DEC','DEX','DEY','ASL','LSR','ROL','ROR'].includes(inst.opcode)) {
+    executeAfter++
+  }
+}
+
+
+// cycle incrs
+// -absoluteX, absoluteY, indirectY (NOT in ST*, INC, DEC, shifts)
+// branch: no branch 2, yes branch 3, yes branch page cross 4
+// note: jmp [nnnn] cannot cross page boundary
+
+// dummy read
+// happens whenn absoluteX, absoluteY, indirectY (same as above) 
+
+// dummy write
+// INC, DEC, shift, rotates
+// - we assume dummy write is same as final write, so we just do store twice
