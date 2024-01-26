@@ -141,30 +141,38 @@ function executeInst() {
 
   if (opcode=='TAY') {
     regY = regA
+    updateNZ(regY)
   }
   else if (opcode=='TAX') {
     regX = regA
+    updateNZ(regX)
   }
   else if (opcode=='TSX') {
     regX = regS
+    updateNZ(regX)
   }
   else if (opcode=='TYA') {
     regA = regY
+    updateNZ(regA)
   }
   else if (opcode=='TXA') {
     regA = regX
+    updateNZ(regA)
   }
   else if (opcode=='TXS') {
     regS = regX
   }
   else if (opcode=='LDA') {
     regA = loadValueUsingInst(currentInst)
+    updateNZ(regA)
   }
   else if (opcode=='LDX') {
     regX = loadValueUsingInst(currentInst)
+    updateNZ(regX)
   }
   else if (opcode=='LDY') {
     regY = loadValueUsingInst(currentInst)
+    updateNZ(regY)
   }
   else if (opcode=='STA') {
     storeValueUsingInst(currentInst, regA)
@@ -176,142 +184,258 @@ function executeInst() {
     storeValueUsingInst(currentInst, regY)
   }
   else if (opcode=='PHA') {
-    setByteToMemory(regS, regA, true)
+    setByteToMemory(256+regS, regA, true)
     regS--
+    normalize(regS, 8)
   }
   else if (opcode=='PHP') {
-    setByteToMemory(regS, getRegP(), true)
+    setByteToMemory(256+regS, getRegP(), true)
     regS--
+    normalize(regS, 8)
   }
   else if (opcode=='PLA') {
     regS++
-    getByteFromMemory(regS, true)
+    normalize(regS, 8)
+    regA = getByteFromMemory(256+regS, true)
+    updateNZ(regA)
   }
   else if (opcode=='PLP') {
     regS++
-    setRegP( getByteFromMemory(regS, true) )
+    normalize(regS, 8)
+    setRegP( getByteFromMemory(256+regS, true) )
   }
-  else if (opcode=='ADC') {
-    regA += loadValueUsingInst(currentInst) + flagC
-    regA = normalize(regA, 8)
+  else if (opcode=='ADC') { // dec mode, flg
+    if (flagD) {
+      //// http://www.6502.org/tutorials/decimal_mode.html#A
+    }
+    else {
+      regA += loadValueUsingInst(currentInst) + flagC
+      regA = normalize(regA, 8)
+      updateNZ(regA)
+    }
   }
-  else if (opcode=='SBC') {
-    regA += flagC - 1 - loadValueUsingInst(currentInst)
-    regA = normalize(regA, 8)
+  else if (opcode=='SBC') { // dec mode, flg
+    if (flagD) {
+      //// http://www.6502.org/tutorials/decimal_mode.html#A
+    }
+    else {
+      regA += flagC - 1 - loadValueUsingInst(currentInst)
+      regA = normalize(regA, 8)
+      updateNZ(regA)
+    }
   }
   else if (opcode=='AND') {
     regA &= loadValueUsingInst(currentInst)
     regA = normalize(regA, 8)
+    updateNZ(regA)
   }
   else if (opcode=='EOR') {
     regA ^= loadValueUsingInst(currentInst)
     regA = normalize(regA, 8)
+    updateNZ(regA)
   }
   else if (opcode=='ORA') {
     regA |= loadValueUsingInst(currentInst)
     regA = normalize(regA, 8)
+    updateNZ(regA)
   }
   else if (opcode=='CMP') {
-    /////
+    let val = loadValueUsingInst(currentInst)
+    updateNZ( normalize(regA-val, 8) )
+    flagC = regA >= val
   }
   else if (opcode=='CPX') {
-
+    let val = loadValueUsingInst(currentInst)
+    updateNZ( normalize(regX-val, 8) )
+    flagC = regX >= val
   }
   else if (opcode=='CPY') {
-
+    let val = loadValueUsingInst(currentInst)
+    updateNZ( normalize(regY-val, 8) )
+    flagC = regY >= val
   }
   else if (opcode=='BIT') {
-
+    let result = regA & loadValueUsingInst(currentInst)
+    updateNZ(result)
+    flagV = result & 64 != 0
   }
   else if (opcode=='INC') {
-
+    let val = loadValueUsingInst(currentInst)
+    val++
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='INX') {
-
+    regX++
+    normalize(regX, 8)
+    updateNZ(regX)
   }
   else if (opcode=='INY') {
-
+    regY++
+    normalize(regY, 8)
+    updateNZ(regY)
   }
   else if (opcode=='DEC') {
-
+    let val = loadValueUsingInst(currentInst)
+    val--
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='DEX') {
-
+    regX--
+    normalize(regX, 8)
+    updateNZ(regX)
   }
   else if (opcode=='DEY') {
-
+    regY--
+    normalize(regY, 8)
+    updateNZ(regY)
   }
   else if (opcode=='ASL') {
-
+    let val = loadValueUsingInst(currentInst)
+    flagC = val & 128 != 0
+    val <<= 1
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='LSR') {
-
+    let val = loadValueUsingInst(currentInst)
+    flagC = val & 1
+    val >>= 1
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='ROL') {
-
+    let val = loadValueUsingInst(currentInst)
+    let oldFlagC = flagC
+    flagC = val & 128 != 0
+    val <<= 1
+    val += oldFlagC
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='ROR') {
-
+    let val = loadValueUsingInst(currentInst)
+    let oldFlagC = flagC
+    flagC = val & 1
+    val >>= 1
+    val += oldFlagC * 128
+    val = normalize(val, 8)
+    updateNZ(val)
+    storeValueUsingInst(currentInst, val)
   }
   else if (opcode=='JMP') {
-
+    regPC = loadValueUsingInst(currentInst)
   }
   else if (opcode=='JSR') {
-
+    setByteToMemory(256+regS, regPC>>8, true)
+    regS--
+    normalize(regS, 8)
+    setByteToMemory(256+regS, regPC&256, true)
+    regS--
+    normalize(regS, 8)
+    regPC = loadValueUsingInst(currentInst)
   }
   else if (opcode=='RTI') {
-
+    regS++
+    normalize(regS, 8)
+    setRegP( getByteFromMemory(256+regS, true) )
+    regS++
+    normalize(regS, 8)
+    let lowByte = getByteFromMemory(256+regS, true)
+    regS++
+    normalize(regS, 8)
+    let highByte = getByteFromMemory(256+regS, true)
+    regPC = lowByte | highByte<<8
   }
   else if (opcode=='RTS') {
-
+    regS++
+    normalize(regS, 8)
+    let lowByte = getByteFromMemory(256+regS, true)
+    regS++
+    normalize(regS, 8)
+    let highByte = getByteFromMemory(256+regS, true)
+    regPC = lowByte | highByte<<8
   }
   else if (opcode=='BPL') {
-
+    if (flagN==0) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BMI') {
-
+    if (flagN==1) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BVC') {
-
+    if (flagV==0) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BVS') {
-
+    if (flagV==1) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BCC') {
-
+    if (flagC==0) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BCS') {
-
+    if (flagC==1) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BNE') {
-
+    if (flagZ==0) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BEQ') {
-
+    if (flagZ==1) {
+      regPC += currentInst.operand // TODO: check if pc offset is right here
+    }
   }
   else if (opcode=='BRK') {
-
+    flagB=1
+    flagI=1
+    setByteToMemory(256+regS, regPC>>8, true)
+    regS--
+    normalize(regS, 8)
+    setByteToMemory(256+regS, regPC&256, true)
+    regS--
+    normalize(regS, 8)
+    setByteToMemory(256+regS, getRegP(), true)
+    regS--
+    normalize(regS, 8)
+    regPC = loadValueUsingInst({addressingMode: 'Absolute2', operand: 0xFFFE})
   }
   else if (opcode=='CLC') {
-
+    flagC=0
   }
   else if (opcode=='CLI') {
-
+    flagI=0
   }
   else if (opcode=='CLD') {
-
+    flagD=0
   }
   else if (opcode=='CLV') {
-
+    flagV=0
   }
   else if (opcode=='SEC') {
-
+    flagC=1
   }
   else if (opcode=='SEI') {
-
+    flagI=1
   }
   else if (opcode=='SED') {
-
+    flagD=1
   }
   else if (opcode=='NOP') {
 
@@ -328,7 +452,13 @@ function setByteToMemory(addr, value, triggerIO) {
 }
 
 function loadValueUsingInst(inst) {
-  if (inst.addressingMode=='Immediate') {
+  if (inst.addressingMode=='Implied') {
+    return regA
+  }
+  else if (inst.addressingMode=='Immediate') {
+    return inst.operand
+  }
+  else if (inst.addressingMode=='Immediate2') {
     return inst.operand
   }
   else if (inst.addressingMode=='ZeroPage') {
@@ -343,14 +473,17 @@ function loadValueUsingInst(inst) {
   else if (inst.addressingMode=='Absolute') {
     return getByteFromMemory(inst.operand, true)
   }
+  else if (inst.addressingMode=='Absolute2') {
+    return getByteFromMemory(inst.operand, true) | getByteFromMemory(inst.operand+1, true)<<8
+  }
   else if (inst.addressingMode=='AbsoluteX') {
-    if (inst.operand%256+regX >= 256) {
+    if (crossesPageBoundary(inst.operand, regX)) {
       getByteFromMemory(inst.operand+regX-256, true)
     }
     return getByteFromMemory(inst.operand+regX, true)
   }
   else if (inst.addressingMode=='AbsoluteY') {
-    if (inst.operand%256+regY >= 256) {
+    if (crossesPageBoundary(inst.operand, regY)) {
       getByteFromMemory(inst.operand+regY-256, true)
     }
     return getByteFromMemory(inst.operand+regY, true)
@@ -363,7 +496,7 @@ function loadValueUsingInst(inst) {
   else if (inst.addressingMode=='IndirectY') {
     let addr = getByteFromMemory(inst.operand, false) +
       getByteFromMemory(inst.operand+1, false) << 8
-    if (addr%256+regY >= 256) {
+    if (crossesPageBoundary(addr, regY)) {
       getByteFromMemory(addr+regY-256, true)
     }
     return getByteFromMemory(addr+regY, true)
@@ -374,7 +507,10 @@ function loadValueUsingInst(inst) {
 }
 
 function storeValueUsingInst(inst, value) {
-  if (inst.addressingMode=='Immediate') {
+  if (inst.addressingMode=='Implied') {
+    regA = value
+  }
+  else if (inst.addressingMode=='Immediate') {
     unreachable()
   }
   else if (inst.addressingMode=='ZeroPage') {
@@ -417,6 +553,11 @@ function unreachable() {
 function normalize(val, bitLength) {
   let max = 2**bitLength
   return (val % max + max) % max
+}
+
+function updateNZ(val) {
+  flagZ = val==0
+  flagN = val>127
 }
 
 function fetchDecodeNextInst() {
@@ -553,18 +694,18 @@ function fetchDecodeNextInst() {
     {firstByte: 0x6E,	opcode: 'ROR',	addressingMode: 'Absolute',	cycles: 6},
     {firstByte: 0x7E,	opcode: 'ROR',	addressingMode: 'AbsoluteX',	cycles: 7},
     {firstByte: 0x4C,	opcode: 'JMP',	addressingMode: 'Immediate2',	cycles: 3},
-    {firstByte: 0x6C,	opcode: 'JMP',	addressingMode: 'Absolute',	cycles: 5},
+    {firstByte: 0x6C,	opcode: 'JMP',	addressingMode: 'Absolute2',	cycles: 5},
     {firstByte: 0x20,	opcode: 'JSR',	addressingMode: 'Immediate2',	cycles: 6},
     {firstByte: 0x40,	opcode: 'RTI',	addressingMode: 'Implied',	cycles: 6},
     {firstByte: 0x60,	opcode: 'RTS',	addressingMode: 'Implied',	cycles: 6},
-    {firstByte: 0x10,	opcode: 'BPL',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0x30,	opcode: 'BMI',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0x50,	opcode: 'BVC',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0x70,	opcode: 'BVS',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0x90,	opcode: 'BCC',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0xB0,	opcode: 'BCS',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0xD0,	opcode: 'BNE',	addressingMode: 'Immediate2',	cycles: 2},
-    {firstByte: 0xF0,	opcode: 'BEQ',	addressingMode: 'Immediate2',	cycles: 2},
+    {firstByte: 0x10,	opcode: 'BPL',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0x30,	opcode: 'BMI',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0x50,	opcode: 'BVC',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0x70,	opcode: 'BVS',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0x90,	opcode: 'BCC',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0xB0,	opcode: 'BCS',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0xD0,	opcode: 'BNE',	addressingMode: 'PCRelative',	cycles: 2},
+    {firstByte: 0xF0,	opcode: 'BEQ',	addressingMode: 'PCRelative',	cycles: 2},
     {firstByte: 0x00,	opcode: 'BRK',	addressingMode: 'Implied',	cycles: 7},
     {firstByte: 0x18,	opcode: 'CLC',	addressingMode: 'Implied',	cycles: 2},
     {firstByte: 0x58,	opcode: 'CLI',	addressingMode: 'Implied',	cycles: 2},
@@ -586,10 +727,12 @@ function fetchDecodeNextInst() {
     ZeroPageX: 1,
     ZeroPageY: 1,
     Absolute: 2,
+    Absolute2: 2,
     AbsoluteX: 2,
     AbsoluteY: 2,
     IndirectX: 1,
-    IndirectY: 1
+    IndirectY: 1,
+    PCRelative: 1
   }
 
   let inst
@@ -613,27 +756,56 @@ function fetchDecodeNextInst() {
   }
   else if (addressingModeToOperandLength[inst.addressingMode]==1) {
     currentInst.operand = getByteFromMemory(regPC+1, true)
+    if (inst.addressingMode=='PCRelative') {
+      currentInst.operand -= 128
+    }
     // TODO: if pc is FFFF then this should return to 0 or what?
     regPC+=2
   }
   else if (addressingModeToOperandLength[inst.addressingMode]==2) {
-    currentInst.operand = getByteFromMemory(regPC+1, true)<<8 | getByteFromMemory(regPC+2, true)
+    currentInst.operand = getByteFromMemory(regPC+1, true) | getByteFromMemory(regPC+2, true)<<8
     regPC+=3
   }
   else {
     unreachable()
   }
 
-  // TODO: for jumps and branches pc needs to change
-
-  executeAfter = inst.cycles //// TODO: test the page boundary
-  if (['AbsoluteX', 'AbsoluteY', 'IndirectY'].includes(inst.addressingMode) &&
-  !['STA','STX','STY','INC','INX','INY','DEC','DEX','DEY','ASL','LSR','ROL','ROR'].includes(inst.opcode)) {
-    executeAfter++
+  executeAfter = inst.cycles
+  if (!['STA','STX','STY','INC','INX','INY','DEC','DEX','DEY','ASL','LSR','ROL','ROR'].includes(inst.opcode)) {
+    if (inst.addressingMode=='AbsoluteX') {
+      if (crossesPageBoundary(currentInst.operand, regX)) executeAfter++
+    }
+    else if (inst.addressingMode=='AbsoluteY') {
+      if (crossesPageBoundary(currentInst.operand, regY)) executeAfter++
+    }
+    else if (inst.addressingMode=='IndirectY') {
+      let val = getByteFromMemory(currentInst.operand, false) | getByteFromMemory(currentInst.operand+1, false)<<8
+      if (crossesPageBoundary(val, regY)) executeAfter++
+    }
+    else if (inst.addressingMode=='PCRelative') {
+      if (!shouldBranch(inst.opcode)) {}
+      else if (!crossesPageBoundary(regPC, currentInst.operand)) executeAfter++
+      else executeAfter+=2
+    }
   }
 }
 
+function crossesPageBoundary(arg1, arg2) {
+  let sum = arg1%256 + arg2%256
+  return sum>=256 || sum<0
+}
 
+function shouldBranch(opcode) {
+  if (opcode=='BPL') return flagN==0
+  else if (opcode=='BMI') return flagN==1
+  else if (opcode=='BVC') return flagV==0
+  else if (opcode=='BVS') return flagV==1
+  else if (opcode=='BCC') return flagC==0
+  else if (opcode=='BCS') return flagC==1
+  else if (opcode=='BNE') return flagZ==0
+  else if (opcode=='BEQ') return flagZ==1
+  else unreachable()
+}
 // cycle incrs
 // -absoluteX, absoluteY, indirectY (NOT in ST*, INC, DEC, shifts)
 // branch: no branch 2, yes branch 3, yes branch page cross 4
