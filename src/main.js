@@ -204,25 +204,39 @@ function executeInst() {
     normalize(regS, 8)
     setRegP( getByteFromMemory(256+regS, true) )
   }
-  else if (opcode=='ADC') { // dec mode, flg
+  else if (opcode=='ADC') {
+    let arg2 = loadValueUsingInst(currentInst)
     if (flagD) {
       //// http://www.6502.org/tutorials/decimal_mode.html#A
+      let regAlow = (regA & 0xF) + (arg2 & 0xF) + flagC
+      if (regAlow >= 10) regAlow = ((regAlow + 6) & 0xF) + 0x10
+      regA = (regA & 0xF0) + (arg2 & 0xF0) + regAlow
+      if (regA >= 0xA0) regA += 0x60
     }
     else {
-      regA += loadValueUsingInst(currentInst) + flagC
-      regA = normalize(regA, 8)
-      updateNZ(regA)
+      regA += arg2 + flagC
     }
+    flagC = regA >= 256
+    flagV = regA > 383 || regA < 128
+    regA = normalize(regA, 8)
+    updateNZ(regA)
   }
-  else if (opcode=='SBC') { // dec mode, flg
+  else if (opcode=='SBC') {
+    let arg2 = loadValueUsingInst(currentInst)
     if (flagD) {
       //// http://www.6502.org/tutorials/decimal_mode.html#A
+      let regAlow = (regA & 0xF) - (arg2 & 0xF) + flagC - 1
+      if (regAlow < 0) regAlow = ((regAlow - 6) & 0xF) - 0x10
+      regA = (regA & 0xF0) - (arg2 & 0xF0) + regAlow
+      if (regA < 0) regA -= 0x60
     }
     else {
-      regA += flagC - 1 - loadValueUsingInst(currentInst)
-      regA = normalize(regA, 8)
-      updateNZ(regA)
+      regA += flagC - 1 - arg2
     }
+    flagC = regA >= 0
+    flagV = regA > 127 || regA < -128
+    regA = normalize(regA, 8)
+    updateNZ(regA)
   }
   else if (opcode=='AND') {
     regA &= loadValueUsingInst(currentInst)
