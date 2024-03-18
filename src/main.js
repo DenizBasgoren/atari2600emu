@@ -6,6 +6,12 @@ let fileReader = new FileReader()
 
 let cartridgeBytes = null
 
+let cartridgeMappingIndex = 0 // assume 0 for now. TODO: detect mapping
+let cartridgeMapping = [ // just copy for now, later needs to be dynamic
+  newRomEntry(0,        0xFFF,    0,        -1,       -1,       true)
+]
+// also note that upon copying here, expansion rams should have memory as a field
+
 cartridgeReaderEl.onchange = ev => {
   fileReader.readAsArrayBuffer( cartridgeReaderEl.files[0] )
 }
@@ -64,6 +70,7 @@ let mainLoop = setInterval(() => {
         executeInst()
         fetchDecodeNextInst()
       }
+      updateTimer()
     }
   }
 }, 1/60);
@@ -115,12 +122,12 @@ function executeInst() {
     storeValueUsingInst(currentInst, regY)
   }
   else if (opcode=='PHA') {
-    setByteToMemory(256+regS, regA, true)
+    setByteToMemory(256+regS, regA)
     regS--
     normalize(regS, 8)
   }
   else if (opcode=='PHP') {
-    setByteToMemory(256+regS, getRegP(), true)
+    setByteToMemory(256+regS, getRegP())
     regS--
     normalize(regS, 8)
   }
@@ -278,10 +285,10 @@ function executeInst() {
     regPC = loadValueUsingInst(currentInst)
   }
   else if (opcode=='JSR') {
-    setByteToMemory(256+regS, regPC>>8, true)
+    setByteToMemory(256+regS, regPC>>8)
     regS--
     normalize(regS, 8)
-    setByteToMemory(256+regS, regPC&256, true)
+    setByteToMemory(256+regS, regPC&256)
     regS--
     normalize(regS, 8)
     regPC = loadValueUsingInst(currentInst)
@@ -350,13 +357,13 @@ function executeInst() {
   else if (opcode=='BRK') {
     flagB=1
     flagI=1
-    setByteToMemory(256+regS, regPC>>8, true)
+    setByteToMemory(256+regS, regPC>>8)
     regS--
     normalize(regS, 8)
-    setByteToMemory(256+regS, regPC&256, true)
+    setByteToMemory(256+regS, regPC&256)
     regS--
     normalize(regS, 8)
-    setByteToMemory(256+regS, getRegP(), true)
+    setByteToMemory(256+regS, getRegP())
     regS--
     normalize(regS, 8)
     regPC = loadValueUsingInst({addressingMode: 'Absolute2', operand: 0xFFFE})
@@ -394,12 +401,170 @@ let electronBeamY = 0
 let vsync = 0 // 0=off 1=on
 let vblank = 0 // 0=off 1=on
 
+let player0 = {
+  color: 0, //
+  luminance: 0, //
+  position: 0, //
+  positionAdjustment: 0, //
+  sprite: [0,0,0,0,0,0,0,0], //
+  isReflected: false, //
+  numberSizeSetting: 0, //
+}
+
+let player1 = {
+  color: 0, //
+  luminance: 0, //
+  position: 0, //
+  positionAdjustment: 0, //
+  sprite: [0,0,0,0,0,0,0,0], //
+  isReflected: false, //
+  numberSizeSetting: 0, //
+}
+
+let missile0 = {
+  position: 0, //
+  positionAdjustment: 0, //
+  isPositionLockedOnPlayer: false, //
+  isVisible: false, //
+  size: 0, //
+}
+
+let missile1 = {
+  position: 0, //
+  positionAdjustment: 0, //
+  isPositionLockedOnPlayer: false, //
+  isVisible: false, //
+  size: 0, //
+}
+
+let ball = {
+  position: 0, //
+  positionAdjustment: 0, //
+  isVisible: false, //
+  size: 0, //
+}
+
+let playfield = {
+  sprite: [0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0],
+  color: 0,
+  luminance: 0,
+  isReflected: false,
+}
+
+let background = {
+  color: 0,
+  luminance: 0
+}
+
+let isScoreMode = false
+let isBallPriorityMode = false
+let isWaitingHsync = false
+
+let timer = {
+  value: 0,
+  interval: 0,
+  internalCounter: 0,
+  underflow: false,
+}
+
+function updateTimer() { // TODO test this
+  if (timer.internalCounter)
+  
+  if (timer.underflow) {
+    if (timer.value==0) {
+      timer.value = 255
+    }
+    else {
+      timer.value--
+    }
+  }
+  else {
+    timer.internalCounter--
+    if (timer.internalCounter==0){
+      timer.value--
+    }
+    if (timer.value==0) {
+      timer.underflow = true
+      timer.value = 255
+    }
+    else {
+      timer.value--
+    }
+  }
+}
+
 
 function getByteFromMemory(addr, triggerIO) {
   // TODO handle 0x3F here
 
   if (addr & 0x1000) {
     // cartridge
+    let addr = addr & 0xFFF
+    let cm = cartridgeMapping
+    for (let i = 0; i<cm.length; i++) {
+      if (cm[i].triggerAddress == addr) {
+
+        if (triggerIO) {
+          // NOTE: we don't look at triggerValue for read operations.
+          // This will need to be reconsidered for 3F banking.
+          //
+          cm[i].isActive = true
+          
+          for (let j = 0; j<cm.length; j++) {
+            if (j==i) continue
+            if (!cm[j].isActive) continue
+  
+            let a = cm[i].startFileOffset // the new region
+            let b = cm[i].endFileOffset
+            let c = cm[j].startFileOffset // the old region
+            let d = cm[j].endFileOffset
+  
+            if ( !(b < c || d < a) ) {
+              // they intersect
+              cm[j].isActive = false
+            }
+          }
+
+        }
+
+
+        return 0 // we assume there's only one triggerAddress for each entry
+      }
+    }
+
+    // no triggerAddress is targetted. So we do the normal operation
+    for (let i = 0; i<cm.length; i++) {
+      if (!cm[i].isActive) continue
+
+      if (cm[i].type=='rom') {
+        /*
+        301-300+1 = 2
+        end-start+1
+
+        madr <= adr <= madr+len-1
+        0        0,1    len=2
+
+        400 madr
+        5 len
+        adr: 400,401,402,403,404
+          madr <= adr <= madr+len-1
+        */
+        if ( isBetweenInclusive(addr, cm[i].mappedAddress, cm[i].mappedAddress + cm[i].endFileOffset - cm[i].startFileOffset) ) {
+          return cartridgeBytes[addr - cm[i].mappedAddress + cm[i].startFileOffset]
+        }
+      }
+      else if (cm[i].type=='ram') {
+        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedAddress+cm[i].length-1)) {
+          return cm[i].memory[addr - cm[i].mappedAddress]
+        }
+      }
+      else {
+        return unreachable()
+      }
+    }
+
+
+
   }
   else {
     if (addr & 0x0080) {
@@ -421,9 +586,16 @@ function getByteFromMemory(addr, triggerIO) {
         }
         else if (regNo==4 || regNo==6) {
           // INTIM
+          return timer.value
         }
         else if (regNo==5 || regNo==7) {
           // INSTAT
+          let v = 0
+          if (timer.underflow) v += 128+64
+          if (triggerIO) {
+            timer.underflow = false
+          }
+          return v
         }
       }
       else {
@@ -485,9 +657,69 @@ function readAddrNotMapped(addr) {
   return 0 // TODO or garbage?
 }
 
-function setByteToMemory(addr, value, triggerIO) {
+function setByteToMemory(addr, value) {
   if (addr & 0x1000) {
     // cartridge
+    let addr = addr & 0xFFF
+    let cm = cartridgeMapping
+    for (let i = 0; i<cm.length; i++) {
+      if (cm[i].triggerAddress == addr && (cm[i].triggerValue==value || cm[i].triggerValue==-1)) {
+
+          cm[i].isActive = true
+          
+          for (let j = 0; j<cm.length; j++) {
+            if (j==i) continue
+            if (!cm[j].isActive) continue
+  
+            let a = cm[i].startFileOffset // the new region
+            let b = cm[i].endFileOffset
+            let c = cm[j].startFileOffset // the old region
+            let d = cm[j].endFileOffset
+  
+            if ( !(b < c || d < a) ) {
+              // they intersect
+              cm[j].isActive = false
+            }
+          }
+
+        
+
+
+        return 0 // we assume there's only one triggerAddress for each entry
+      }
+    }
+
+    // no triggerAddress is targetted. So we do the normal operation
+    for (let i = 0; i<cm.length; i++) {
+      if (!cm[i].isActive) continue
+
+      if (cm[i].type=='rom') {
+        /*
+        301-300+1 = 2
+        end-start+1
+
+        madr <= adr <= madr+len-1
+        0        0,1    len=2
+
+        400 madr
+        5 len
+        adr: 400,401,402,403,404
+          madr <= adr <= madr+len-1
+        */
+        if ( isBetweenInclusive(addr, cm[i].mappedAddress, cm[i].mappedAddress + cm[i].endFileOffset - cm[i].startFileOffset) ) {
+          cartridgeBytes[addr - cm[i].mappedAddress + cm[i].startFileOffset] = value
+        }
+      }
+      else if (cm[i].type=='ram') {
+        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedAddress+cm[i].length-1)) {
+          cm[i].memory[addr - cm[i].mappedAddress] = value
+        }
+      }
+      else {
+        return unreachable()
+      }
+    }
+
   }
   else {
     if (addr & 0x0080) {
@@ -509,15 +741,51 @@ function setByteToMemory(addr, value, triggerIO) {
         }
         else if (regNo==4) {
           // TIM1T
+          if (value>0) {
+            timer.underflow = false
+            timer.value = value-1
+          }
+          else {
+            timer.underflow = true
+            timer.value = 255
+          }
+          timer.interval = 1
         }
         else if (regNo==5) {
           // TIM8T
+          if (value>0) {
+            timer.underflow = false
+            timer.value = value-1
+          }
+          else {
+            timer.underflow = true
+            timer.value = 255
+          }
+          timer.interval = 8
         }
         else if (regNo==6) {
           // TIM64T
+          if (value>0) {
+            timer.underflow = false
+            timer.value = value-1
+          }
+          else {
+            timer.underflow = true
+            timer.value = 255
+          }
+          timer.interval = 64
         }
         else if (regNo==7) {
           // T1024T
+          if (value>0) {
+            timer.underflow = false
+            timer.value = value-1
+          }
+          else {
+            timer.underflow = true
+            timer.value = 255
+          }
+          timer.interval = 1024
         }
       }
       else {
@@ -539,48 +807,81 @@ function setByteToMemory(addr, value, triggerIO) {
       else if (regNo==0x01) {
         // VBLANK
         vblank = (value & 2) >> 1
+        // TODO vblank is used for joysticks
       }
       else if (regNo==0x02) {
         // WSYNC
+        isWaitingHsync = true
       }
       else if (regNo==0x03) {
         // RSYNC
       }
       else if (regNo==0x04) {
         // NUSIZ0
+        missile0.size = 2**( (value>>4)&3 )
+        player0.numberSizeSetting = value & 0x7
       }
       else if (regNo==0x05) {
         // NUSIZ1
+        missile1.size = 2**( (value>>4)&3 )
+        player1.numberSizeSetting = value & 0x7
       }
       else if (regNo==0x06) {
         // COLUP0
+        player0.color = (value >> 4) & 0xF
+        player0.luminance = (value >> 1) & 0x7
       }
       else if (regNo==0x07) {
         // COLUP1
+        player1.color = (value >> 4) & 0xF
+        player1.luminance = (value >> 1) & 0x7
       }
       else if (regNo==0x08) {
         // COLUPF
+        playfield.color = (value >> 4) & 0xF
+        playfield.luminance = (value >> 1) & 0x7
       }
       else if (regNo==0x09) {
         // COLUBK
+        background.color = (value >> 4) & 0xF
+        background.luminance = (value >> 1) & 0x7
       }
       else if (regNo==0x0A) {
         // CTRLPF
+        playfield.isReflected = value & 1
+        isScoreMode = (value >> 1) & 1
+        isBallPriorityMode = (value >> 2) & 1
+        ball.size = 2**( (value>>4)&3 )
       }
       else if (regNo==0x0B) {
         // REFP0
+        player0.isReflected = (value >> 3) & 1
       }
       else if (regNo==0x0C) {
         // REFP1
+        player1.isReflected = (value >> 3) & 1
       }
       else if (regNo==0x0D) {
         // PF0
+        let v = value.toString(2).padStart(8,'0').split('').map(Number)
+        playfield.sprite[0] = v[3]
+        playfield.sprite[1] = v[2]
+        playfield.sprite[2] = v[1]
+        playfield.sprite[3] = v[0]
       }
       else if (regNo==0x0E) {
         // PF1
+        let v = value.toString(2).padStart(8,'0').split('').map(Number)
+        for (let i = 0; i<8; i++) {
+          playfield.sprite[4+i] = v[i]
+        }
       }
       else if (regNo==0x0F) {
         // PF2
+        let v = value.toString(2).padStart(8,'0').split('').map(Number)
+        for (let i = 0; i<8; i++) {
+          playfield.sprite[12+i] = v[7-i]
+        }
       }
       else if (regNo==0x10) {
         // RESP0
@@ -617,33 +918,58 @@ function setByteToMemory(addr, value, triggerIO) {
       }
       else if (regNo==0x1B) {
         // GRP0
+        player0.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
       }
       else if (regNo==0x1C) {
         // GRP1
+        player1.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
       }
       else if (regNo==0x1D) {
         // ENAM0
+        missile0.isVisible = (value >> 1) & 1
       }
       else if (regNo==0x1E) {
         // ENAM1
+        missile1.isVisible = (value >> 1) & 1
       }
       else if (regNo==0x1F) {
         // ENABL
+        ball.isVisible = (value >> 1) & 1
       }
       else if (regNo==0x20) {
         // HMP0
+        let v = (value >> 4) & 0xF
+        if (v > 7) v = (v & 7) - 8
+        else v = v & 7
+        player0.positionAdjustment = v
       }
       else if (regNo==0x21) {
         // HMP1
+        let v = (value >> 4) & 0xF
+        if (v > 7) v = (v & 7) - 8
+        else v = v & 7
+        player1.positionAdjustment = v
       }
       else if (regNo==0x22) {
         // HMM0
+        let v = (value >> 4) & 0xF
+        if (v > 7) v = (v & 7) - 8
+        else v = v & 7
+        missile0.positionAdjustment = v
       }
       else if (regNo==0x23) {
         // HMM1
+        let v = (value >> 4) & 0xF
+        if (v > 7) v = (v & 7) - 8
+        else v = v & 7
+        missile1.positionAdjustment = v
       }
       else if (regNo==0x24) {
         // HMBL
+        let v = (value >> 4) & 0xF
+        if (v > 7) v = (v & 7) - 8
+        else v = v & 7
+        ball.positionAdjustment = v
       }
       else if (regNo==0x25) {
         // VDELP0
@@ -656,9 +982,11 @@ function setByteToMemory(addr, value, triggerIO) {
       }
       else if (regNo==0x28) {
         // RESMP0
+        missile0.isPositionLockedOnPlayer = (value >> 1) & 1
       }
       else if (regNo==0x29) {
         // RESMP1
+        missile1.isPositionLockedOnPlayer = (value >> 1) & 1
       }
       else if (regNo==0x2A) {
         // HMOVE
@@ -741,32 +1069,32 @@ function storeValueUsingInst(inst, value) {
     unreachable()
   }
   else if (inst.addressingMode=='ZeroPage') {
-    setByteToMemory(inst.operand, value, true)
+    setByteToMemory(inst.operand, value)
   }
   else if (inst.addressingMode=='ZeroPageX') {
-    setByteToMemory((inst.operand+regX)%256, value, true)
+    setByteToMemory((inst.operand+regX)%256, value)
   }
   else if (inst.addressingMode=='ZeroPageY') {
-    setByteToMemory((inst.operand+regY)%256, value, true)
+    setByteToMemory((inst.operand+regY)%256, value)
   }
   else if (inst.addressingMode=='Absolute') {
-    setByteToMemory(inst.operand, value, true)
+    setByteToMemory(inst.operand, value)
   }
   else if (inst.addressingMode=='AbsoluteX') {
-    setByteToMemory(inst.operand+regX, value, true)
+    setByteToMemory(inst.operand+regX, value)
   }
   else if (inst.addressingMode=='AbsoluteY') {
-    setByteToMemory(inst.operand+regY, value, true)
+    setByteToMemory(inst.operand+regY, value)
   }
   else if (inst.addressingMode=='IndirectX') {
     let addr = getByteFromMemory((inst.operand+regX)%256, false) + // TODO: are these true or false?
       getByteFromMemory((inst.operand+regX)%256+1, false) << 8
-    setByteToMemory(addr, value, true)
+    setByteToMemory(addr, value)
   }
   else if (inst.addressingMode=='IndirectY') {
     let addr = getByteFromMemory(inst.operand, false) +
       getByteFromMemory(inst.operand+1, false) << 8
-    setByteToMemory(addr+regY, value, true)
+    setByteToMemory(addr+regY, value)
   }
   else {
     unreachable()
@@ -785,6 +1113,10 @@ function normalize(val, bitLength) {
 function updateNZ(val) {
   flagZ = val==0
   flagN = val>127
+}
+
+function isBetweenInclusive(a, b, c) { // is a between b and c? both sides inclusive
+  return a >= b && a <= c
 }
 
 function fetchDecodeNextInst() {
@@ -1045,30 +1377,122 @@ function shouldBranch(opcode) {
 // INC, DEC, shift, rotates
 // - we assume dummy write is same as final write, so we just do store twice
 
+function newRomEntry(startFileOffset, endFileOffset, mappedAddress, triggerAddress, triggerValue, isActive) {
+  return {
+    type: 'rom',
+    startFileOffset,
+    endFileOffset,
+    mappedAddress,
+    triggerAddress,
+    triggerValue,
+    isActive
+  }
+}
+
+function newRamEntry(length, mappedReadAddress, mappedWriteAddress) {
+  return {
+    type: 'ram',
+    length,
+    mappedReadAddress,
+    mappedWriteAddress,
+    isActive: true // ram is always active
+  }
+}
 
 let recognizedCartridgeMappings = [
   // atari 4k
   [
-    // {
-    //   type: 'rom',
-    //   startOffset: 0
-    //   endOffset: 0xFFFF
-    // }
+    newRomEntry(0,        0xFFF,    0,        -1,       -1,       true)
+  ],
+
+  // atari 2k
+  [
+    newRomEntry(0,        0x7FF,    0,        -1,       -1,       true),
+    newRomEntry(0,        0x7FF,    0x800,    -1,       -1,       true)
+  ],
+
+  // atari 8k
+  [
+    newRomEntry(0,        0xFFF,    0,        0xFF8,    -1,       true),
+    newRomEntry(0x1000,   0x1FFF,   0,        0xFF9,    -1,       false),
+  ],
+
+  // atari 12k
+  [
+    newRomEntry(0,        0xFFF,    0,        0xFF8,    -1,       true),
+    newRomEntry(0x1000,   0x1FFF,   0,        0xFF9,    -1,       false),
+    newRomEntry(0x2000,   0x2FFF,   0,        0xFFA,    -1,       false),
+  ],
+
+  // atari 16k
+  [
+    newRomEntry(0,        0xFFF,    0,        0xFF6,    -1,       true),
+    newRomEntry(0x1000,   0x1FFF,   0,        0xFF7,    -1,       false),
+    newRomEntry(0x2000,   0x2FFF,   0,        0xFF8,    -1,       false),
+    newRomEntry(0x3000,   0x3FFF,   0,        0xFF9,    -1,       false),
+  ],
+
+
+  // atari 32k
+  [
+    newRomEntry(0,        0xFFF,    0,        0xFF4,    -1,       true),
+    newRomEntry(0x1000,   0x1FFF,   0,        0xFF5,    -1,       false),
+    newRomEntry(0x2000,   0x2FFF,   0,        0xFF6,    -1,       false),
+    newRomEntry(0x3000,   0x3FFF,   0,        0xFF7,    -1,       false),
+    newRomEntry(0x4000,   0x4FFF,   0,        0xFF8,    -1,       false),
+    newRomEntry(0x5000,   0x5FFF,   0,        0xFF9,    -1,       false),
+    newRomEntry(0x6000,   0x6FFF,   0,        0xFFA,    -1,       false),
+    newRomEntry(0x7000,   0x7FFF,   0,        0xFFB,    -1,       false),
+  ],
+
+
+  // burgtime, he_man
+  [
+    newRomEntry(0,        0x7FF,    0,        0xFE0,    -1,       true),
+    newRomEntry(0x800,    0xFFF,    0,        0xFE1,    -1,       false),
+    newRomEntry(0x1000,   0x17FF,   0,        0xFE2,    -1,       false),
+    newRomEntry(0x1800,   0x1FFF,   0,        0xFE3,    -1,       false),
+    newRomEntry(0x2000,   0x27FF,   0,        0xFE4,    -1,       false),
+    newRomEntry(0x2800,   0x2FFF,   0,        0xFE5,    -1,       false),
+    newRomEntry(0x3000,   0x37FF,   0,        0xFE6,    -1,       false),
+    newRomEntry(0x3800,   0x3FFF,   0,        0xFE7,    -1,       false),
+    newRomEntry(0x3A00,   0x3FFF,   0xA00,    -1,       -1,       true),  // TODO: 3a00-3fff or 3800-3dff???
+    newRamEntry(0x200,    0x800,    0x800)
+  ],
+
+  // TODO: analyze BNJ rom file. what does "first 8k empty" mean?
+
+
+  // Popeye, Gyruss, Sprcobra, Tutank, Dethstar, Qbrtcube, Ewokadvn, Montzrev, Frogger2, Lordofth, James_bo, Swarcade, Toothpro
+  [
+    newRomEntry(0,        0x3FF,    0,        0xFE0,     -1,       true),
+    newRomEntry(0x400,    0x7FF,    0,        0xFE1,     -1,       false),
+    newRomEntry(0x800,    0xBFF,    0,        0xFE2,     -1,       false),
+    newRomEntry(0xC00,    0xFFF,    0,        0xFE3,     -1,       false),
+    newRomEntry(0x1000,   0x13FF,   0,        0xFE4,     -1,       false),
+    newRomEntry(0x1400,   0x17FF,   0,        0xFE5,     -1,       false),
+    newRomEntry(0x1800,   0x1BFF,   0,        0xFE6,     -1,       false),
+    newRomEntry(0x1C00,   0x1FFF,   0,        0xFE7,     -1,       false),
+    newRomEntry(0,        0x3FF,    0x400,    0xFE8,     -1,       true),
+    newRomEntry(0x400,    0x7FF,    0x400,    0xFE9,     -1,       false),
+    newRomEntry(0x800,    0xBFF,    0x400,    0xFEA,     -1,       false),
+    newRomEntry(0xC00,    0xFFF,    0x400,    0xFEB,     -1,       false),
+    newRomEntry(0x1000,   0x13FF,   0x400,    0xFEC,     -1,       false),
+    newRomEntry(0x1400,   0x17FF,   0x400,    0xFED,     -1,       false),
+    newRomEntry(0x1800,   0x1BFF,   0x400,    0xFEE,     -1,       false),
+    newRomEntry(0x1C00,   0x1FFF,   0x400,    0xFEF,     -1,       false),
+    newRomEntry(0,        0x3FF,    0x800,    0xFF0,     -1,       true),
+    newRomEntry(0x400,    0x7FF,    0x800,    0xFF1,     -1,       false),
+    newRomEntry(0x800,    0xBFF,    0x800,    0xFF2,     -1,       false),
+    newRomEntry(0xC00,    0xFFF,    0x800,    0xFF3,     -1,       false),
+    newRomEntry(0x1000,   0x13FF,   0x800,    0xFF4,     -1,       false),
+    newRomEntry(0x1400,   0x17FF,   0x800,    0xFF5,     -1,       false),
+    newRomEntry(0x1800,   0x1BFF,   0x800,    0xFF6,     -1,       false),
+    newRomEntry(0x1C00,   0x1FFF,   0x800,    0xFF7,     -1,       false),
+    newRomEntry(0x1C00,   0x1FFF,   0xC00,    -1,        -1,       true)
   ]
+
+  // TODO: Cart 2k-banking not implemented because of 3F addr issue (Springer, Espial, Minrvol2, Mnr2049r, Riverp, Polaris)
+  
+  // Decathln and Pitfall 2 not supported
 ]
-
-/*
-type: 'rom'
-startOffset: int
-endOffset: int
-mappedAddresses: []
-triggerAddress: int
-triggerValue(?): int
-isInitiallyMapped: bool
-
-type: 'ram'
-length: int
-mappedReadAddresses: []
-mappedWriteAddresses: []
-*/
-
