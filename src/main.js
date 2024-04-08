@@ -1,6 +1,5 @@
 
 let cartridgeReaderEl = document.querySelector('#cartridgeReader')
-let cartridgeDumpEl = document.querySelector('#cartridgeDump')
 
 let fileReader = new FileReader()
 
@@ -20,8 +19,63 @@ fileReader.onloadend = () => {
   cartridgeBytes = new Uint8Array(fileReader.result) 
 }
 
-let tvEl = document.querySelector('#tv')
+let tvEl = document.querySelector('#TV')
 let tvCtx = tvEl.getContext('2d')
+
+/// tv type
+let tvType = 'ntsc'
+let canvasWidth = 160 // doesnt change
+let canvasHeight = 262 // ntsc=262, pal,secam,mono=312
+let frameRate = 60 // ntsc=60, pal,secam,mono=50 Hz
+let tvTypeEl = document.querySelector('#tvType')
+tvTypeEl.onchange = ev => {
+  console.log(ev.target.value)
+  tvType = ev.target.value
+  if (tvType == 'ntsc') {
+    canvasHeight = 262
+    frameRate = 60
+  }
+  else if (tvType == 'pal' || tvType == 'secam' || tvType == 'mono') {
+    canvasHeight = 312
+    frameRate = 50
+  }
+  clearInterval(mainLoop)
+  tvEl.width = canvasWidth
+  tvEl.height = canvasHeight
+  mainLoop = setInterval(mainFn, 1/frameRate)
+}
+
+/// controllers
+let controllerType = 'joystick' // joystick, joystick3, paddle, keypad
+let controllerTypeEl = document.querySelector('#gameControllerType')
+controllerTypeEl.onchange = ev => {
+  console.log(ev.target.value)
+  controllerType = ev.target.value
+}
+
+let swacnt = [0,0,0,0,0,0,0,0] // 0-input (joystick, paddle) 1-output (keypad)
+let swbcnt = [0,0,0,0,0,0,0,0]
+let latchedInputs = [0,0] // inpt4-5
+let vblankInpt = [0,0] // vblank6-7
+
+let pressedKeys = {}
+
+// What happens if joysticks are connected and swcha is all output?
+
+// KeyW KeyA.., Numpad0, Numpad9, NumpadDivide, NumpadMultiply
+// Player0: wasdf, Player1: ijklh
+window.onkeydown = ev => {
+  pressedKeys[ev.code] = true
+}
+
+window.onkeyup = ev => {
+  pressedKeys[ev.code] = false
+}
+
+window.onload = ev => {
+  controllerType = 'joystick'
+  controllerTypeEl.value = 'joystick'
+}
 
 
 let regA=0 // 8bit
@@ -61,21 +115,49 @@ addressingMode: Implied Immediate ZeroPage ZeroPageX ZeroPageY Absolute Absolute
 operand: (number)
 */
 
+// UNCOMMENT LATER
+let machineCycleAfter = 0
+let vsyncBecameOne = false
+var mainLoop = setInterval(function mainFn() {
+  for (let colorClock = 0; colorClock<100000; colorClock++) {
 
-let mainLoop = setInterval(() => {
-  for (let colorClock = 0; colorClock<262*228; colorClock++) {
-    if (colorClock%3==0) {
+    if ( colorClock % 228 == 0 ) {
+      isWaitingHsync = false
+    }
+    if (colorClock >= 228*canvasHeight) {
+      // don't draw anything
+    }
+    else if (vblank || vsync) {
+      // draw black dot
+    }
+    else if ( colorClock % 228 >= 68 ) {
+      /// draw fn
+    }
+
+    if (machineCycleAfter==0) {
+      machineCycleAfter = 3
       executeAfter--
-      if (executeAfter==0) {
+      if (executeAfter==0 && !isWaitingHsync) {
         executeInst()
         fetchDecodeNextInst()
       }
       updateTimer()
     }
+    machineCycleAfter--
+
+    if (vsync && !vsyncBecameOne) { // vsync goes 0 to 1
+      vsyncBecameOne = true
+    }
+    else if (!vsync && vsyncBecameOne) { // vsync goes 1 to 0
+      break
+    }
   }
+
+  vsyncBecameOne = false
 }, 1/60);
 
 function executeInst() {
+  let opcode = currentInst.opcode
 
   if (opcode=='TAY') {
     regY = regA
@@ -574,15 +656,40 @@ function getByteFromMemory(addr, triggerIO) {
         let regNo = addr & 0x0007
         if (regNo==0) {
           // SWCHA
+          let swcha = [0,0,0,0,0,0,0,0] // will need reversing when serialization
+          if (controllerType == 'joystick' || controllerType == 'joystick3') {
+            swcha[0] = !(pressedKeys['KeyI'] && swacnt[0]==0 )
+            swcha[1] = !(pressedKeys['KeyK'] && swacnt[1]==0 )
+            swcha[2] = !(pressedKeys['KeyJ'] && swacnt[2]==0 )
+            swcha[3] = !(pressedKeys['KeyL'] && swacnt[3]==0 )
+            swcha[4] = !(pressedKeys['KeyW'] && swacnt[4]==0 )
+            swcha[5] = !(pressedKeys['KeyS'] && swacnt[5]==0 )
+            swcha[6] = !(pressedKeys['KeyA'] && swacnt[6]==0 )
+            swcha[7] = !(pressedKeys['KeyD'] && swacnt[7]==0 )
+            return parseInt(swcha.reverse().join(''))
+          }
+          else if (controllerType == 'paddle') {
+            //// TODO
+            return 0
+          }
+          else if (controllerType == 'keypad') {
+            //// TODO
+            return 0
+          }
+          else {
+            unreachable()
+          }
         }
         else if (regNo==1) {
           // SWACNT
+          return parseInt(swacnt.reverse().join(' '))
         }
         else if (regNo==2) {
           // SWCHB
         }
         else if (regNo==3) {
           // SWBCNT
+          return parseInt(swbcnt.reverse().join(' '))
         }
         else if (regNo==4 || regNo==6) {
           // INTIM
@@ -632,6 +739,12 @@ function getByteFromMemory(addr, triggerIO) {
       }
       else if (regNo==8) {
         // INPT0
+        if (controllerType=='joystick' || controllerType=='joystick3') {
+
+        }
+        else {
+          return 0 // TODO
+        }
       }
       else if (regNo==9) {
         // INPT1
@@ -732,12 +845,14 @@ function setByteToMemory(addr, value) {
         }
         else if (regNo==1) {
           // SWACNT
+          swacnt = value.toString(2).padStart(8,'0').split('').map(Number).reverse()
         }
         else if (regNo==2) {
           // SWCHB
         }
         else if (regNo==3) {
           // SWBCNT
+          swbcnt = value.toString(2).padStart(8,'0').split('').map(Number).reverse()
         }
         else if (regNo==4) {
           // TIM1T
@@ -800,7 +915,7 @@ function setByteToMemory(addr, value) {
         // VSYNC
         let newVsync = (value & 2) >> 1
         if (vsync==1 && newVsync==0) {
-          tvCtx.clearRect(0,0,500,500)
+          tvCtx.clearRect(0,0,canvasWidth,canvasHeight)
         }
         vsync = newVsync
       }
@@ -808,6 +923,8 @@ function setByteToMemory(addr, value) {
         // VBLANK
         vblank = (value & 2) >> 1
         // TODO vblank is used for joysticks
+        vblankInpt[0] = (value >> 6) & 1
+        vblankInpt[1] = (value >> 7) & 1
       }
       else if (regNo==0x02) {
         // WSYNC
@@ -1496,3 +1613,85 @@ let recognizedCartridgeMappings = [
   
   // Decathln and Pitfall 2 not supported
 ]
+
+
+//  ctx.fillStyle = `hsv(${hsv[0]}, ${hsv[1]}, ${hsv[2]})`;
+// where tvStandard = NTSC, PAL, SECAM, MONO
+function getColorHSV(tvStandard, colu) {
+  let bits123 = (colu >> 1) & 7
+  let bits4567 = (colu >> 4) & 15
+
+  if (tvStandard == 'ntsc') {
+    let ntscColorsHSV = [
+      [0, 0, 1],     // White
+      [50/360, 1, 1],  // Gold
+      [30/360, 1, 1],  // Orange
+      [30/360, 1, 1],  // Bright orange
+      [330/360, 1, 1],  // Pink
+      [300/360, 1, 1],  // Purple
+      [270/360, 1, 1],  // Purple-blue
+      [240/360, 1, 1],  // Blue
+      [240/360, 1, 1],  // Blue
+      [210/360, 1, 1],  // Light blue
+      [180/360, 1, 1],  // Torq.
+      [150/360, 1, 1],  // Green-blue
+      [120/360, 1, 1],  // Green
+      [90/360, 1, 1],   // Yellow-green
+      [60/360, 1, 1],   // Orange-green
+      [30/360, 1, 1]    // Light orange
+    ]
+    let color = ntscColorsHSV[bits4567]
+    color[2] = color[2] * bits123 / 7
+    return color
+  }  
+  else if (tvStandard == 'pal') {
+    let palColorsHSV = [
+      [0, 0, 1],      // White
+      [0, 0, 1],      // White
+      [60/360, 1, 1],   // Yellow
+      [90/360, 1, 1],   // Green-yellow
+      [30/360, 1, 1],   // Orange
+      [120/360, 1, 1],  // Green
+      [0/360, 1, 1],    // Pink-orange
+      [150/360, 1, 1],  // Green-blue
+      [330/360, 1, 1],  // Pink
+      [180/360, 1, 1],  // Turquois
+      [300/360, 1, 1],  // Pink-blue
+      [210/360, 1, 1],  // Light blue
+      [240/360, 1, 1],  // Blue-red
+      [240/360, 1, 1],  // Dark blue
+      [0, 0, 1],      // Same as color 0
+      [0, 0, 1]       // Same as color 0
+    ]
+    let color = palColorsHSV[bits4567]
+    color[2] = color[2] * bits123 / 7
+    return color
+  }  
+  else if (tvStandard == 'secam') {
+    let secamColorsHSV = [
+      [0, 0, 0],        // Black
+      [240/360, 1, 1],  // Blue
+      [0/360, 1, 1],    // Red
+      [300/360, 1, 1],  // Magenta
+      [120/360, 1, 1],  // Green
+      [180/360, 1, 1],  // Cyan
+      [60/360, 1, 1],   // Yellow
+      [0, 0, 1]         // White
+    ]
+    return secamColorsHSV[bits123]
+  }  
+  else { // Mono color TV
+    let grayshadeColorsHSV = [
+      [0, 0, 0],      // Black
+      [0, 0, 0.25],   // Dark grey
+      [0, 0, 0.5],    // Grey
+      [0, 0, 0.75],   // Light grey
+      [0, 0, 0.875],  // Greyish white
+      [0, 0, 0.94],   // Lightest grey
+      [0, 0, 0.97],   // Slightly off-white
+      [0, 0, 1]       // White
+    ]
+    return grayshadeColorsHSV[bits123]
+  }  
+}  
+
