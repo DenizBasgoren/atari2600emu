@@ -118,20 +118,29 @@ operand: (number)
 // UNCOMMENT LATER
 let machineCycleAfter = 0
 let vsyncBecameOne = false
+let colorClock = 0
 var mainLoop = setInterval(function mainFn() {
-  for (let colorClock = 0; colorClock<100000; colorClock++) {
+  for (colorClock = 0; colorClock<100000; colorClock++) {
 
-    if ( colorClock % 228 == 0 ) {
+    let x = colorClock % 228
+    let y = Math.floor( colorClock / 228 )
+
+
+    if ( x == 0 ) {
       isWaitingHsync = false
     }
-    if (colorClock >= 228*canvasHeight) {
+    if (y >= canvasHeight) {
       // don't draw anything
     }
     else if (vblank || vsync) {
       // draw black dot
+      tvCtx.fillStyle = 'black'
+      tvCtx.fillRect(x,y,1,1)
     }
-    else if ( colorClock % 228 >= 68 ) {
+    else if ( x >= 68 ) {
       /// draw fn
+      tvCtx.fillStyle = renderLogic(x-68)
+      tvCtx.fillRect(x,y,1,1)
     }
 
     if (machineCycleAfter==0) {
@@ -478,33 +487,31 @@ function executeInst() {
 }
 
 let ram = Array(128).map(v => 0) // TODO init 0 or garbage?
-let electronBeamX = 0
-let electronBeamY = 0
 let vsync = 0 // 0=off 1=on
 let vblank = 0 // 0=off 1=on
 
 let player0 = {
-  color: 0, //
-  luminance: 0, //
-  position: 0, //
+  color: 'hsv(0,0,0)', // hsv string
+  position: 0, // 0..159
   positionAdjustment: 0, //
   sprite: [0,0,0,0,0,0,0,0], //
+  sprite_delayed: [0,0,0,0,0,0,0,0], //
   isReflected: false, //
   numberSizeSetting: 0, //
 }
 
 let player1 = {
-  color: 0, //
-  luminance: 0, //
-  position: 0, //
+  color: 'hsv(0,0,0)', // hsv string
+  position: 0, // 0..159
   positionAdjustment: 0, //
   sprite: [0,0,0,0,0,0,0,0], //
+  sprite_delayed: [0,0,0,0,0,0,0,0], //
   isReflected: false, //
   numberSizeSetting: 0, //
 }
 
 let missile0 = {
-  position: 0, //
+  position: 0, // 0..159
   positionAdjustment: 0, //
   isPositionLockedOnPlayer: false, //
   isVisible: false, //
@@ -512,7 +519,7 @@ let missile0 = {
 }
 
 let missile1 = {
-  position: 0, //
+  position: 0, // 0..159
   positionAdjustment: 0, //
   isPositionLockedOnPlayer: false, //
   isVisible: false, //
@@ -520,27 +527,48 @@ let missile1 = {
 }
 
 let ball = {
-  position: 0, //
+  position: 0, // 0..159
   positionAdjustment: 0, //
   isVisible: false, //
+  isVisible_delayed: false,
   size: 0, //
 }
 
 let playfield = {
   sprite: [0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0],
-  color: 0,
-  luminance: 0,
+  color: 'hsv(0,0,0)', // hsv string
   isReflected: false,
 }
 
 let background = {
-  color: 0,
-  luminance: 0
+  color: 'hsv(0,0,0)', // hsv string
 }
 
 let isScoreMode = false
 let isBallPriorityMode = false
 let isWaitingHsync = false
+let verticallyDelayP0 = false
+let verticallyDelayP1 = false
+let verticallyDelayBL = false
+
+let collidedM0_P1 = false
+let collidedM0_P0 = false
+let collidedM1_P0 = false
+let collidedM1_P1 = false
+let collidedP0_PF = false
+let collidedP0_BL = false
+let collidedP1_PF = false
+let collidedP1_BL = false
+let collidedM0_PF = false
+let collidedM0_BL = false
+let collidedM1_PF = false
+let collidedM1_BL = false
+let collidedBL_PF = false
+let collidedP0_P1 = false
+let collidedM0_M1 = false
+
+
+
 
 let timer = {
   value: 0,
@@ -636,8 +664,8 @@ function getByteFromMemory(addr, triggerIO) {
         }
       }
       else if (cm[i].type=='ram') {
-        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedAddress+cm[i].length-1)) {
-          return cm[i].memory[addr - cm[i].mappedAddress]
+        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedReadAddress+cm[i].length-1)) {
+          return cm[i].memory[addr - cm[i].mappedReadAddress]
         }
       }
       else {
@@ -715,27 +743,35 @@ function getByteFromMemory(addr, triggerIO) {
       let regNo = addr & 0x000F
       if (regNo==0) {
         // CXM0P
+        return collidedM0_P1 << 7 | collidedM0_P0 << 6
       }
       else if (regNo==1) {
         // CXM1P
+        return collidedM1_P0 << 7 | collidedM1_P1 << 6
       }
       else if (regNo==2) {
         // CXP0FB
+        return collidedP0_PF << 7 | collidedP0_BL << 6
       }
       else if (regNo==3) {
         // CXP1FB
+        return collidedP1_PF << 7 | collidedP1_BL << 6
       }
       else if (regNo==4) {
         // CXM0FB
+        return collidedM0_PF << 7 | collidedM0_BL << 6
       }
       else if (regNo==5) {
         // CXM1FB
+        return collidedM1_PF << 7 | collidedM1_BL << 6
       }
       else if (regNo==6) {
         // CXBLPF
+        return collidedBL_PF << 7
       }
       else if (regNo==7) {
         // CXPPMM
+        return collidedP0_P1 << 7 | collidedM0_M1 << 6
       }
       else if (regNo==8) {
         // INPT0
@@ -824,8 +860,8 @@ function setByteToMemory(addr, value) {
         }
       }
       else if (cm[i].type=='ram') {
-        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedAddress+cm[i].length-1)) {
-          cm[i].memory[addr - cm[i].mappedAddress] = value
+        if (isBetweenInclusive(addr, cm[i].mappedReadAddress, cm[i].mappedReadAddress+cm[i].length-1)) {
+          cm[i].memory[addr - cm[i].mappedReadAddress] = value
         }
       }
       else {
@@ -945,23 +981,19 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x06) {
         // COLUP0
-        player0.color = (value >> 4) & 0xF
-        player0.luminance = (value >> 1) & 0x7
+        player0.color = getColorHSV(tvType, value)
       }
       else if (regNo==0x07) {
         // COLUP1
-        player1.color = (value >> 4) & 0xF
-        player1.luminance = (value >> 1) & 0x7
+        player1.color = getColorHSV(tvType, value)
       }
       else if (regNo==0x08) {
         // COLUPF
-        playfield.color = (value >> 4) & 0xF
-        playfield.luminance = (value >> 1) & 0x7
+        playfield.color = getColorHSV(tvType, value)
       }
       else if (regNo==0x09) {
         // COLUBK
-        background.color = (value >> 4) & 0xF
-        background.luminance = (value >> 1) & 0x7
+        background.color = getColorHSV(tvType, value)
       }
       else if (regNo==0x0A) {
         // CTRLPF
@@ -1002,18 +1034,53 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x10) {
         // RESP0
+        let x = colorClock % 228
+        if (x >= 68) {
+          player0.position = x-68
+        }
+        else {
+          player0.position = 3
+        }
       }
       else if (regNo==0x11) {
         // RESP1
+        let x = colorClock % 228
+        if (x >= 68) {
+          player1.position = x-68
+        }
+        else {
+          player1.position = 3
+        }
       }
       else if (regNo==0x12) {
         // RESM0
+        let x = colorClock % 228
+        if (x >= 68) {
+          missile0.position = x-68
+        }
+        else {
+          missile0.position = 2
+        }
       }
       else if (regNo==0x13) {
         // RESM1
+        let x = colorClock % 228
+        if (x >= 68) {
+          missile1.position = x-68
+        }
+        else {
+          missile1.position = 2
+        }
       }
       else if (regNo==0x14) {
         // RESBL
+        let x = colorClock % 228
+        if (x >= 68) {
+          ball.position = x-68
+        }
+        else {
+          ball.position = 2
+        }
       }
       else if (regNo==0x15) {
         // AUDC0
@@ -1035,11 +1102,30 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x1B) {
         // GRP0
-        player0.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
+        if (verticallyDelayP0) {
+          player0.sprite_delayed = value.toString(2).padStart(8,'0').split('').map(Number)
+        }
+        else {
+          player0.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
+        }
+        if (verticallyDelayP1) {
+          player1.sprite = player1.sprite_delayed
+        }
       }
       else if (regNo==0x1C) {
         // GRP1
-        player1.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
+        if (verticallyDelayP1) {
+          player1.sprite_delayed = value.toString(2).padStart(8,'0').split('').map(Number)
+        }
+        else {
+          player1.sprite = value.toString(2).padStart(8,'0').split('').map(Number)
+        }
+        if (verticallyDelayP0) {
+          player0.sprite = player0.sprite_delayed
+        }
+        if (verticallyDelayBL) {
+          ball.isVisible = ball.isVisible_delayed
+        }
       }
       else if (regNo==0x1D) {
         // ENAM0
@@ -1051,7 +1137,12 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x1F) {
         // ENABL
-        ball.isVisible = (value >> 1) & 1
+        if (verticallyDelayBL) {
+          ball.isVisible_delayed = (value >> 1) & 1
+        }
+        else {
+          ball.isVisible = (value >> 1) & 1
+        }
       }
       else if (regNo==0x20) {
         // HMP0
@@ -1090,12 +1181,24 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x25) {
         // VDELP0
+        verticallyDelayP0 = value & 1
+        if (!verticallyDelayP0) {
+          player0.sprite = player0.sprite_delayed // TODO check this
+        }
       }
       else if (regNo==0x26) {
         // VDELP1
+        verticallyDelayP1 = value & 1
+        if (!verticallyDelayP1) {
+          player1.sprite = player1.sprite_delayed
+        }
       }
       else if (regNo==0x27) {
         // VDELBL
+        verticallyDelayBL = value & 1
+        if (!verticallyDelayBL) {
+          ball.isVisible = ball.isVisible_delayed
+        }
       }
       else if (regNo==0x28) {
         // RESMP0
@@ -1107,12 +1210,37 @@ function setByteToMemory(addr, value) {
       }
       else if (regNo==0x2A) {
         // HMOVE
+        player0.position = (player0.position + player0.positionAdjustment) % 160
+        player1.position = (player1.position + player1.positionAdjustment) % 160
+        missile0.position = (missile0.position + missile0.positionAdjustment) % 160
+        missile1.position = (missile1.position + missile1.positionAdjustment) % 160
+        ball.position = (ball.position + ball.positionAdjustment) % 160
       }
       else if (regNo==0x2B) {
         // HMCLR
+        player0.positionAdjustment = 0
+        player1.positionAdjustment = 0
+        missile0.positionAdjustment = 0
+        missile1.positionAdjustment = 0
+        ball.positionAdjustment = 0
       }
       else if (regNo==0x2C) {
         // CXCLR
+        collidedM0_P1 = false
+        collidedM0_P0 = false
+        collidedM1_P0 = false
+        collidedM1_P1 = false
+        collidedP0_PF = false
+        collidedP0_BL = false
+        collidedP1_PF = false
+        collidedP1_BL = false
+        collidedM0_PF = false
+        collidedM0_BL = false
+        collidedM1_PF = false
+        collidedM1_BL = false
+        collidedBL_PF = false
+        collidedP0_P1 = false
+        collidedM0_M1 = false
       }
       else writeAddrNotMapped(addr, value)
     }
@@ -1616,7 +1744,7 @@ let recognizedCartridgeMappings = [
 
 
 //  ctx.fillStyle = `hsv(${hsv[0]}, ${hsv[1]}, ${hsv[2]})`;
-// where tvStandard = NTSC, PAL, SECAM, MONO
+// where tvStandard = ntsc, pal, secam, mono
 function getColorHSV(tvStandard, colu) {
   let bits123 = (colu >> 1) & 7
   let bits4567 = (colu >> 4) & 15
@@ -1695,3 +1823,392 @@ function getColorHSV(tvStandard, colu) {
   }  
 }  
 
+
+// assuming here 0 <= x < 160
+function renderLogic(x) {
+
+  // playfield
+  let playfield_bit
+  if (x < 80) {
+    playfield_bit = Math.floor(x/4)
+  }
+  else { // x >= 80
+    if (playfield.isReflected) {
+      playfield_bit = 19-Math.floor((x-80)/4)
+    }
+    else { // not reversed
+      playfield_bit = Math.floor((x-80)/4)
+    }
+  }
+
+  // ball
+  let ball_bit = 0
+  if (!ball.isVisible) {
+    ball_bit = 0
+  }
+  else {
+    for ( let i = 0; i<ball.size; i++) {
+      if ((ball.position + i) % 160 == x) {
+        ball_bit = 1
+        break
+      }
+    }
+  }
+
+
+  function playerRenderLogic(player) {
+    if (player.numberSizeSetting == 0) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 1) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+      for (let i = 16; i<24; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 23-i : i-16]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 2) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+      for (let i = 32; i<40; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 39-i : i-32]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 3) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+      for (let i = 16; i<24; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 23-i : i-16]
+        }
+      }
+      for (let i = 32; i<40; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 39-i : i-32]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 4) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+      for (let i = 64; i<72; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 71-i : i-64]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 5) {
+      // double
+      for (let i = 0; i<16; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-Math.floor(i/2) : Math.floor(i/2)]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 6) {
+      for (let i = 0; i<8; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-i : i]
+        }
+      }
+      for (let i = 32; i<40; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 39-i : i-32]
+        }
+      }
+      for (let i = 64; i<72; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 71-i : i-64]
+        }
+      }
+    }
+    else if (player.numberSizeSetting == 7) {
+      // quad
+      for (let i = 0; i<32; i++) {
+        if ((player.position+i)%160==x) {
+          return player.sprite[ player.isReflected ? 7-Math.floor(i/4) : Math.floor(i/4)]
+        }
+      }
+    }
+
+    return 0
+  }
+
+  // players
+  let player0_bit = playerRenderLogic(player0)
+  let player1_bit = playerRenderLogic(player1)
+
+  function calcOffset(playerSize, missileSize) {
+    return Math.floor( (playerSize-missileSize)/2 )
+  }
+
+  function missileRenderLogic(missile, player) {
+    if (!missile.isVisible) return 0
+    if (missile.isPositionLockedOnPlayer) {
+      if (player.numberSizeSetting == 0) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 1) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 16; i<16+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 2) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<32+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 3) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 16; i<16+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<32+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 4) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 64; i<64+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 5) {
+        let offset = calcOffset(16, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 6) {
+        let offset = calcOffset(8, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<32+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 64; i<64+missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 7) {
+        let offset = calcOffset(32, missile.size)
+        for (let i = 0; i<missile.size; i++) {
+          if ( (player.position + offset + i ) % 160 == x) {
+            return 1
+          }
+        }
+      }
+    }
+    else { // position not locked on player
+      if (player.numberSizeSetting == 0) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 1) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 16; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 2) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 3) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 16; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 4) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 64; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 5) {
+        // double
+        // TODO: is this the same as 0?
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 6) {
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 32; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+        for (let i = 64; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+      else if (player.numberSizeSetting == 7) {
+        // quad
+        // TODO: is this the same as 0?
+        for (let i = 0; i<missile.size; i++) {
+          if ((missile.position+i) % 160 == x) {
+            return 1
+          }
+        }
+      }
+    }
+    return 0
+  }
+
+  let missile0_bit = missileRenderLogic(missile0, player0)
+  let missile1_bit = missileRenderLogic(missile1, player1)
+  
+  //// check priority bits then update collisions then decide on the color
+  collidedM0_P1 |= missile0_bit & player1_bit
+  collidedM0_P0 |= missile0_bit & player0_bit
+  collidedM1_P0 |= missile1_bit & player0_bit
+  collidedM1_P1 |= missile1_bit & player1_bit
+  collidedP0_PF |= player0_bit & playfield_bit
+  collidedP0_BL |= player0_bit & ball_bit
+  collidedP1_PF |= player1_bit & playfield_bit
+  collidedP1_BL |= player1_bit & ball_bit
+  collidedM0_PF |= missile0_bit & playfield_bit
+  collidedM0_BL |= missile0_bit & ball_bit
+  collidedM1_PF |= missile1_bit & playfield_bit
+  collidedM1_BL |= missile1_bit & ball_bit
+  collidedBL_PF |= ball_bit & playfield_bit
+  collidedP0_P1 |= player0_bit & player1_bit
+  collidedM0_M1 |= missile0_bit & missile1_bit
+
+  if (isBallPriorityMode) {
+    if (playfield_bit || ball_bit) return playfield.color
+    if (player0_bit || missile0_bit) return player0.color
+    if (player1_bit || missile1_bit) return player1.color
+    return background.color
+  }
+  else if (isScoreMode) {
+    if (x < 80) {
+      if (player0_bit || missile0_bit || playfield_bit) return player0.color
+      if (player1_bit || missile1_bit) return player1.color
+      if (ball_bit) return playfield.color
+      return background.color
+    }
+    else {
+      if (player0_bit || missile0_bit) return player0.color
+      if (player1_bit || missile1_bit || playfield_bit) return player1.color
+      if (ball_bit) return playfield.color
+      return background.color
+    }
+  }
+  else {
+    if (player0_bit || missile0_bit) return player0.color
+    if (player1_bit || missile1_bit) return player1.color
+    if (playfield_bit || ball_bit) return playfield.color
+    return background.color
+  }
+}
