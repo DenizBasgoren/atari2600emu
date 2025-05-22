@@ -4,7 +4,9 @@
 
     #include <stdint.h>
     #include <stdbool.h>
+    #include <raylib.h>
 
+    #define ATARI_DEBUG_MODE
 
     typedef struct {
         uint8_t a;
@@ -81,6 +83,7 @@
            CARTRIDGE_E0, CARTRIDGE_3F, CARTRIDGE_FA, CARTRIDGE_E7, CARTRIDGE_F0, CARTRIDGE_UA };
     enum { INPUT_JOYSTICK, INPUT_PADDLE, INPUT_KEYPAD };
 
+    void memory_init_random( void );
     uint8_t memory_read( uint16_t address );
     void memory_write( uint16_t address, uint8_t value );
     uint8_t memory_access_cartridge( uint16_t address, uint8_t value );
@@ -190,13 +193,36 @@
         int color_background; // rgba 32bit
     } Playfield;
 
-    extern int tv_standard;
-    extern bool vsync;
-    extern bool wsync;
-    extern int tv_x;
-    extern int tv_y;
-    extern bool hmove_is_active;
+    extern Player0 player0;
+    extern Player1 player1;
+    extern Missile0 missile0;
+    extern Missile1 missile1;
+    extern Ball ball;
+    extern Playfield playfield;
 
+    extern bool vsync;
+    extern bool vblank;
+    extern bool wsync;
+    extern bool hmove_is_active;
+    extern int video_priority;
+    extern uint8_t debug_nusiz0, debug_nusiz1, debug_hmp0, debug_hmp1, debug_hmm0, debug_hmm1, debug_hmbl;
+
+
+    #define WINDOW_WIDTH_PX 228
+    #define WINDOW_HEIGHT_PX 262
+
+    typedef Color Scanline[WINDOW_WIDTH_PX];
+
+    typedef struct {
+        Scanline pixels[WINDOW_HEIGHT_PX];
+        int x;
+        int y;
+        int standard;
+    } TV;
+
+    extern TV tv;
+
+    void video_init_objects( void );
     void video_VSYNC_write ( uint8_t value );
     void video_VBLANK_write ( uint8_t value );
     void video_WSYNC_write ( void );
@@ -301,7 +327,7 @@
     extern Paddle paddle0, paddle1, paddle2, paddle3;
     extern Keypad keypad0, keypad1;
     extern int input_mode;
-    extern uint8_t swcha, swacnt;
+    extern uint8_t swcha, swacnt, swbcnt;
     extern uint8_t inpt0, inpt1, inpt2, inpt3;
     extern uint8_t inpt4, inpt5; // these are latched, so must be saved
 

@@ -64,13 +64,48 @@ Ball ball;
 Playfield playfield;
 
 bool hmove_is_active;
-int tv_standard;
 int video_priority;
 bool vsync;
 bool vblank;
 bool wsync;
 
+uint8_t debug_nusiz0, debug_nusiz1, debug_hmp0, debug_hmp1, debug_hmm0, debug_hmm1, debug_hmbl;
 
+void video_init_objects( void ) {
+    player0.color = 0x000000ff; // black
+    player0.copies = 1;
+    player0.size = 8;
+    player0.distance_between_copies = 16;
+    player0.x = 2;
+    
+    player1.color = 0x000000ff; // black
+    player1.copies = 1;
+    player1.size = 8;
+    player1.distance_between_copies = 16;
+    player1.x = 2;
+
+    missile0.color = 0x000000ff; // black
+    missile0.copies = 1;
+    missile0.size = 1;
+    missile0.distance_between_copies = 16;
+    missile0.x = 1;
+
+
+    missile1.color = 0x000000ff; // black
+    missile1.copies = 1;
+    missile1.size = 1;
+    missile1.distance_between_copies = 16;
+    missile1.x = 1;
+
+    ball.color = 0x000000ff; // black
+    ball.size = 1;
+    ball.x = 1;
+
+    playfield.color_background =  0x000000ff; // black
+    playfield.color_left_half = 0x000000ff; // black
+    playfield.color_right_half =  0x000000ff; // black
+    
+}
 
 void video_VSYNC_write ( uint8_t value ) {
     vsync = value>>1 & 1;
@@ -102,6 +137,8 @@ void video_RSYNC_write ( void ) {
 
 
 void video_NUSIZ0_write ( uint8_t value ) {
+    debug_nusiz0 = value & 3;
+
     switch (value>>4 & 3) {
         case 0: missile0.size = 1; break;
         case 1: missile0.size = 2; break;
@@ -165,6 +202,8 @@ void video_NUSIZ0_write ( uint8_t value ) {
 
 
 void video_NUSIZ1_write ( uint8_t value ) {
+    debug_nusiz1 = value & 3;
+
     switch (value>>4 & 3) {
         case 0: missile1.size = 1; break;
         case 1: missile1.size = 2; break;
@@ -228,37 +267,37 @@ void video_NUSIZ1_write ( uint8_t value ) {
 
 
 void video_COLUP0_write ( uint8_t value ) {
-    player0.color = video_decode_color(value, tv_standard);
-    missile0.color = video_decode_color(value, tv_standard);
+    player0.color = video_decode_color(value, tv.standard);
+    missile0.color = video_decode_color(value, tv.standard);
     if (video_priority == VIDEO_PRIORITY_SCORE) {
-        playfield.color_left_half = video_decode_color(value, tv_standard);
+        playfield.color_left_half = video_decode_color(value, tv.standard);
     }
 }
 
 
 
 void video_COLUP1_write ( uint8_t value ) {
-    player1.color = video_decode_color(value, tv_standard);
-    missile1.color = video_decode_color(value, tv_standard);
+    player1.color = video_decode_color(value, tv.standard);
+    missile1.color = video_decode_color(value, tv.standard);
     if (video_priority == VIDEO_PRIORITY_SCORE) {
-        playfield.color_right_half = video_decode_color(value, tv_standard);
+        playfield.color_right_half = video_decode_color(value, tv.standard);
     }
 }
 
 
 
 void video_COLUPF_write ( uint8_t value ) {
-    ball.color = video_decode_color(value, tv_standard);
+    ball.color = video_decode_color(value, tv.standard);
     if (video_priority != VIDEO_PRIORITY_SCORE) {
-        playfield.color_left_half = video_decode_color(value, tv_standard);
-        playfield.color_right_half = video_decode_color(value, tv_standard);
+        playfield.color_left_half = video_decode_color(value, tv.standard);
+        playfield.color_right_half = video_decode_color(value, tv.standard);
     }
 }
 
 
 
 void video_COLUBK_write ( uint8_t value ) {
-    playfield.color_background = video_decode_color(value, tv_standard);
+    playfield.color_background = video_decode_color(value, tv.standard);
 }
 
 
@@ -338,10 +377,10 @@ void video_PF2_write ( uint8_t value ) {
 // https://www.youtube.com/watch?v=sJFnWZH5FXc see 12:47. mentions 4px, 5px, 6px
 void video_RESP0_write ( void ) {
     if (player0.size > 8) {
-        player0.x = (tv_x<160-9) ? tv_x+9 : 2;
+        player0.x = (tv.x<160-9) ? tv.x+9 : 2;
     }
     else {
-        player0.x = (tv_x<160-8) ? tv_x+8 : 2;
+        player0.x = (tv.x<160-8) ? tv.x+8 : 2;
     }
 }
 
@@ -349,29 +388,29 @@ void video_RESP0_write ( void ) {
 
 void video_RESP1_write ( void ) {
     if (player1.size > 8) {
-        player1.x = (tv_x<160-9) ? tv_x+9 : 2;
+        player1.x = (tv.x<160-9) ? tv.x+9 : 2;
     }
     else {
-        player1.x = (tv_x<160-8) ? tv_x+8 : 2;
+        player1.x = (tv.x<160-8) ? tv.x+8 : 2;
     }
 }
 
 
 
 void video_RESM0_write ( void ) {
-    missile0.x = (tv_x<160-7) ? tv_x+7 : 1;
+    missile0.x = (tv.x<160-7) ? tv.x+7 : 1;
 }
 
 
 
 void video_RESM1_write ( void ) {
-    missile1.x = (tv_x<160-7) ? tv_x+7 : 1;
+    missile1.x = (tv.x<160-7) ? tv.x+7 : 1;
 }
 
 
 
 void video_RESBL_write ( void ) {
-    ball.x = (tv_x<160-7) ? tv_x+7 : 1;
+    ball.x = (tv.x<160-7) ? tv.x+7 : 1;
 }
 
 
@@ -458,30 +497,35 @@ int video_horizontal_movement_helper( uint8_t value ) {
 }
 
 void video_HMP0_write ( uint8_t value ) {
+    debug_hmp0 = (value & 0xF0) >> 4;
     player0.dx = video_horizontal_movement_helper(value);
 }
 
 
 
 void video_HMP1_write ( uint8_t value ) {
+    debug_hmp1 = (value & 0xF0) >> 4;
     player1.dx = video_horizontal_movement_helper(value);
 }
 
 
 
 void video_HMM0_write ( uint8_t value ) {
+    debug_hmm0 = (value & 0xF0) >> 4;
     missile0.dx = video_horizontal_movement_helper(value);
 }
 
 
 
 void video_HMM1_write ( uint8_t value ) {
+    debug_hmm1 = (value & 0xF0) >> 4;
     missile1.dx = video_horizontal_movement_helper(value);
 }
 
 
 
 void video_HMBL_write ( uint8_t value ) {
+    debug_hmbl = (value & 0xF0) >> 4;
     ball.dx = video_horizontal_movement_helper(value);
 }
 

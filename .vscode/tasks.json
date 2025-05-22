@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "derle",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "${workspaceFolder}/src/frontend.c",
+                "${workspaceFolder}/src/cpu.c",
+                "${workspaceFolder}/src/memory.c",
+                "${workspaceFolder}/src/video.c",
+                "${workspaceFolder}/src/timer.c",
+                "${workspaceFolder}/src/audio.c",
+                "${workspaceFolder}/src/input.c",
+                "-g",
+                "-lraylib",
+                "-lm"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
+

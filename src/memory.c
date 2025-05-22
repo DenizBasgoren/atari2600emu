@@ -1,6 +1,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "atari2600emulator.h"
 
@@ -8,6 +9,11 @@
 Memory memory;
 Cartridge cartridge;
 
+void memory_init_random( void ) {
+    for (int i = 0; i<128; i++) {
+        memory[i] = rand();
+    }
+}
 
 uint8_t memory_read( uint16_t address ) {
     bool A12 = address>>12 & 1;
