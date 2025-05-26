@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -63,7 +65,6 @@ Missile1 missile1;
 Ball ball;
 Playfield playfield;
 
-bool hmove_is_active;
 int video_priority;
 bool vsync;
 bool vblank;
@@ -119,6 +120,7 @@ void video_VBLANK_write ( uint8_t value ) {
     vblank7 = value>>7 & 1;
     if (vblank6==0) {
         // disable latches to logic true
+        puts("VBLANK6==0 not impl yet");
     }
 }
 
@@ -131,7 +133,22 @@ void video_WSYNC_write ( void ) {
 
 
 void video_RSYNC_write ( void ) {
-
+    if (tv.x < 158) {
+        player0.x = (player0.x + 157 - tv.x) % 160;
+        player1.x = (player1.x + 157 - tv.x) % 160;
+        missile0.x = (missile0.x + 157 - tv.x) % 160;
+        missile1.x = (missile1.x + 157 - tv.x) % 160;
+        ball.x = (ball.x + 157 - tv.x) % 160;
+    }
+    tv.x = 157;
+    // if (tv.x < 156) {
+    //     player0.x = (player0.x + 155 - tv.x) % 160;
+    //     player1.x = (player1.x + 155 - tv.x) % 160;
+    //     missile0.x = (missile0.x + 155 - tv.x) % 160;
+    //     missile1.x = (missile1.x + 155 - tv.x) % 160;
+    //     ball.x = (ball.x + 155 - tv.x) % 160;
+    // }
+    // tv.x = 155;
 }
 
 
@@ -377,10 +394,12 @@ void video_PF2_write ( uint8_t value ) {
 // https://www.youtube.com/watch?v=sJFnWZH5FXc see 12:47. mentions 4px, 5px, 6px
 void video_RESP0_write ( void ) {
     if (player0.size > 8) {
-        player0.x = (tv.x<160-9) ? tv.x+9 : 2;
+        player0.x = (tv.x<160) ? (tv.x+6)%160 : 4;
+        // player0.x = (tv.x+2<160) ? (tv.x+2+6)%160 : 4;
     }
     else {
-        player0.x = (tv.x<160-8) ? tv.x+8 : 2;
+        player0.x = (tv.x<160) ? (tv.x+5)%160 : 3;
+        // player0.x = (tv.x+2<160) ? (tv.x+2+5)%160 : 3;
     }
 }
 
@@ -388,29 +407,34 @@ void video_RESP0_write ( void ) {
 
 void video_RESP1_write ( void ) {
     if (player1.size > 8) {
-        player1.x = (tv.x<160-9) ? tv.x+9 : 2;
+        player1.x = (tv.x<160) ? (tv.x+6)%160 : 4;
+        // player1.x = (tv.x<158) ? (tv.x+8)%160 : 4;
     }
     else {
-        player1.x = (tv.x<160-8) ? tv.x+8 : 2;
+        player1.x = (tv.x<160) ? (tv.x+5)%160 : 3;
+        // player1.x = (tv.x<158) ? (tv.x+7)%160 : 3;
     }
 }
 
 
 
 void video_RESM0_write ( void ) {
-    missile0.x = (tv.x<160-7) ? tv.x+7 : 1;
+    missile0.x = (tv.x<160) ? (tv.x+4)%160 : 2;
+    // missile0.x = (tv.x<158) ? (tv.x+6)%160 : 2;
 }
 
 
 
 void video_RESM1_write ( void ) {
-    missile1.x = (tv.x<160-7) ? tv.x+7 : 1;
+    missile1.x = (tv.x<160) ? (tv.x+4)%160 : 2;
+    // missile1.x = (tv.x<158) ? (tv.x+6)%160 : 2;
 }
 
 
 
 void video_RESBL_write ( void ) {
-    ball.x = (tv.x<160-7) ? tv.x+7 : 1;
+    ball.x = (tv.x<160) ? (tv.x+4)%160 : 2;
+    // ball.x = (tv.x<158) ? (tv.x+6)%160 : 2;
 }
 
 
@@ -565,7 +589,13 @@ void video_RESMP1_write ( uint8_t value ) {
 
 
 void video_HMOVE_write ( void ) {
-    hmove_is_active = true;
+    // chatgpt claims repeated HMOVE calls don't accumulate dx, but it actually does
+    // dont trust chatgpt, analyze working emulators instead
+    player0.x = (player0.x + player0.dx + 160) % 160;
+    player1.x = (player1.x + player1.dx + 160) % 160;
+    missile0.x = (missile0.x + missile0.dx + 160) % 160;
+    missile1.x = (missile1.x + missile1.dx + 160) % 160;
+    ball.x = (ball.x + ball.dx + 160) % 160;
 }
 
 
@@ -919,25 +949,16 @@ int video_decode_color( uint8_t color, int tv_standard ) {
 
 
 int video_player0_effective_x ( void) {
-    if (hmove_is_active) {
-        return (player0.x + player0.dx + 160) % 160;
-    }
-    else return player0.x;
+    return player0.x;
 }
 
 int video_player1_effective_x ( void) {
-    if (hmove_is_active) {
-        return (player1.x + player1.dx + 160) % 160;
-    }
-    else return player1.x;
+    return player1.x;
 }
 
 int video_missile0_effective_x ( void) {
     if (missile0.is_locked_on_player) {
         return (video_player0_effective_x() + (player0.size - missile0.size) / 2 ) % 160;
-    }
-    else if (hmove_is_active) {
-        return (missile0.x + missile0.dx + 160) % 160;
     }
     else return missile0.x;
 }
@@ -946,15 +967,9 @@ int video_missile1_effective_x ( void) {
     if (missile1.is_locked_on_player) {
         return (video_player1_effective_x() + (player1.size - missile1.size) / 2 ) % 160;
     }
-    else if (hmove_is_active) {
-        return (missile1.x + missile1.dx + 160) % 160;
-    }
     else return missile1.x;
 }
 
 int video_ball_effective_x ( void) {
-    if (hmove_is_active) {
-        return (ball.x + ball.dx + 160) % 160;
-    }
-    else return ball.x;
+    return ball.x;
 }

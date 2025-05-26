@@ -12,11 +12,11 @@
 // #include "raygui.h"
 
 
-TV tv = {0};
+TV tv = { .x=160, .y=0, .standard=TV_NTSC };
 
 int frames_so_far = 0;
 int color_clocks_this_frame = 0;
-int cpuCooldown = 0;
+int cpuCooldown = 2;
 
 Color rgbaToRaylib( int rgba ) {
     return (Color) {
@@ -55,8 +55,8 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type ) {
 
 void draw_frame(void) {
     for (int y= 0; y<WINDOW_HEIGHT_PX; y++) {
-        for (int x = 0; x<WINDOW_WIDTH_PX; x++) {
-            DrawRectangle(2*x, 2*y, 2, 2, tv.pixels[y][x]);
+        for (int x = 0; x<160; x++) {
+            DrawRectangle(4*x, 2*y, 4, 2, tv.pixels[y][x]);
         }
     }
 }
@@ -83,8 +83,8 @@ void draw_debug_frame(void) {
 
     // screen
     for (int y= 0; y<WINDOW_HEIGHT_PX; y++) {
-        for (int x = 0; x<WINDOW_WIDTH_PX; x++) {
-            DrawRectangle(x, y, 1, 1, tv.pixels[y][x]);
+        for (int x = 0; x<160; x++) {
+            DrawRectangle(2*x, y, 2, 1, tv.pixels[y][x]);
         }
     }
 
@@ -326,10 +326,15 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){405, 5}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%d", tv.y );
     DrawTextEx(font, buf, (Vector2){521, 26}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%d", tv.x );
-    DrawTextEx(font, buf, (Vector2){556, 89}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%d", tv.x-68 );
+    int pixel_pos = tv.x<160 ? tv.x : tv.x-228;
+    sprintf(buf, "%d", pixel_pos );
     DrawTextEx(font, buf, (Vector2){556, 68}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%d", pixel_pos+68 );
+    DrawTextEx(font, buf, (Vector2){556, 89}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%d", cpu.cycle );
+    DrawTextEx(font, buf, (Vector2){745, 5}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%d", cpuCooldown );
+    DrawTextEx(font, buf, (Vector2){913, 5}, fontSize, fontSpacing, fontColor);
     
     
     
@@ -342,7 +347,9 @@ void tick_atari(void) {
     // determine what pixel to draw
     int rgba = video_calculate_pixel(tv.x);
     Color color = rgbaToRaylib(rgba);
-    tv.pixels[tv.y][tv.x] = color;
+    if (tv.x < 160 && tv.y < 262) {
+        tv.pixels[tv.y][tv.x] = color;
+    }
 
     // collisions
     video_calculate_collisions(tv.x);
@@ -351,9 +358,9 @@ void tick_atari(void) {
     tv.x++;
     color_clocks_this_frame++;
     
-    if (tv.x==160) {
+    if (tv.x==160 && wsync) {
         wsync = false;
-        hmove_is_active = false;
+        cpuCooldown = 3;
     }
     else if (tv.x==228) {
         tv.x=0; tv.y++;
@@ -389,12 +396,12 @@ int main(void) {
 
 
     #ifdef ATARI_DEBUG_MODE
-        InitWindow(1156, 767, "");
+        InitWindow(1156, 673, "");
     #else
-        InitWindow(WINDOW_WIDTH_PX*2, WINDOW_HEIGHT_PX*2, "");
+        InitWindow(WINDOW_WIDTH_PX*4, WINDOW_HEIGHT_PX*2, "");
     #endif
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/missiles.a26", TV_NTSC, CARTRIDGE_4K);
+    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example11.a26", TV_NTSC, CARTRIDGE_4K);
     if (er) return 1;
 
     SetTargetFPS(60);
@@ -417,19 +424,19 @@ int main(void) {
                 else if( IsKeyPressed(KEY_TWO) || IsKeyPressedRepeat(KEY_TWO) ) {
                     do {
                         tick_atari();
-                    } while( cpuCooldown != 0 || cpu.cycle != 1 );
+                    } while( !(cpuCooldown == 2 && cpu.cycle == 1 && !wsync) );
                 }
                 // advance one scanline
                 else if( IsKeyPressed(KEY_THREE) || IsKeyPressedRepeat(KEY_THREE) ) {
                     do {
                         tick_atari();
-                    } while( tv.x != 0 );
+                    } while( !(tv.x == 0) ); // cooldown might not be 2 here
                 }
                 // advance one frame
                 else if( IsKeyPressed(KEY_FOUR) || IsKeyPressedRepeat(KEY_FOUR) ) {
                     do {
                         tick_atari();
-                    } while( tv.y != 0 || tv.x != 0 );
+                    } while( !(tv.y == 0 && tv.x == 0) );
                 }
                 
                 // for (int i = 0; i<WINDOW_WIDTH_PX*WINDOW_HEIGHT_PX; i++) {
@@ -438,7 +445,7 @@ int main(void) {
                 draw_debug_frame();
                 input_register_inputs();
             #else
-                for (int i = 0; i<WINDOW_WIDTH_PX*WINDOW_HEIGHT_PX; i++) {
+                for (int i = 0; i<62000; i++) {
                     tick_atari();
                 }
                 draw_frame();

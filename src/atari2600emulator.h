@@ -6,7 +6,7 @@
     #include <stdbool.h>
     #include <raylib.h>
 
-    #define ATARI_DEBUG_MODE
+    // #define ATARI_DEBUG_MODE
 
     typedef struct {
         uint8_t a;
@@ -203,12 +203,11 @@
     extern bool vsync;
     extern bool vblank;
     extern bool wsync;
-    extern bool hmove_is_active;
     extern int video_priority;
     extern uint8_t debug_nusiz0, debug_nusiz1, debug_hmp0, debug_hmp1, debug_hmm0, debug_hmm1, debug_hmbl;
 
 
-    #define WINDOW_WIDTH_PX 228
+    #define WINDOW_WIDTH_PX 160
     #define WINDOW_HEIGHT_PX 262
 
     typedef Color Scanline[WINDOW_WIDTH_PX];

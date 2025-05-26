@@ -120,6 +120,7 @@ void cpu_go_to_reset_vector( void ) {
     uint8_t low = memory_read(0xFFFC);
     uint8_t high = memory_read(0xFFFD);
     cpu.pc = high<<8 | low;
+    cpu.flag_v = 1; // stella does it this way
     cpu.cycle = 1;
 }
 
