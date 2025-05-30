@@ -14,23 +14,24 @@
 */
 
 
-int timer_value;
-int timer_prescaler = 1;
+unsigned char timer_primary_value = 0xFF; // 0xFF part is actually random
+int timer_secondary_value = 1024;
+int timer_prescaler = 1024; // taken from stella
 bool timer_underflow_bit7;
 bool timer_underflow_bit6;
 
 
 uint8_t timer_INTIM_read ( void ) {
-    int result;
-    if (timer_value >= 0) {
-        result = timer_value / timer_prescaler;
-    }
-    else {
-        result = (timer_value % 256) + 256;
-    }
+    // int result;
+    // if (timer_value >= 0) {
+    //     result = timer_value / timer_prescaler;
+    //     if ( timer_value % timer_prescaler == 0) result++;
+    // }
+    // else {
+    //     result = (timer_value % 256) + 256;
+    // }
     timer_underflow_bit7 = false;
-    timer_value = result * timer_prescaler;
-    return result;
+    return timer_primary_value;
 }
 
 
@@ -44,7 +45,9 @@ uint8_t timer_INSTAT_read ( void ) {
 
 
 void timer_TIM1T_write  ( uint8_t value ) {
-    timer_value = value;
+    // timer_value = value + 1;
+    timer_primary_value = value;
+    timer_secondary_value = 1;
     timer_prescaler = 1;
     timer_underflow_bit7 = false;
 }
@@ -52,7 +55,8 @@ void timer_TIM1T_write  ( uint8_t value ) {
 
 
 void timer_TIM8T_write  ( uint8_t value ) {
-    timer_value = value * 8;
+    timer_primary_value = value;
+    timer_secondary_value = 1;
     timer_prescaler = 8;
     timer_underflow_bit7 = false;
 }
@@ -60,7 +64,8 @@ void timer_TIM8T_write  ( uint8_t value ) {
 
 
 void timer_TIM64T_write ( uint8_t value ) {
-    timer_value = value * 64;
+    timer_primary_value = value;
+    timer_secondary_value = 1;
     timer_prescaler = 64;
     timer_underflow_bit7 = false;
 }
@@ -68,7 +73,8 @@ void timer_TIM64T_write ( uint8_t value ) {
 
 
 void timer_T1024T_write ( uint8_t value ) {
-    timer_value = value * 1024;
+    timer_primary_value = value;
+    timer_secondary_value = 1;
     timer_prescaler = 1024;
     timer_underflow_bit7 = false;
 }
@@ -76,11 +82,25 @@ void timer_T1024T_write ( uint8_t value ) {
 
 
 void timer_tick( void ) {
-    if (timer_value == 0) {
-        timer_underflow_bit6 = true;
-        timer_underflow_bit7 = true;
+    timer_secondary_value--;
+    if (timer_secondary_value > 0) {
+        return;
     }
-    timer_value--;
+
+    timer_primary_value--;
+    if (timer_primary_value == 255) {
+        timer_underflow_bit6 = true;
+        timer_underflow_bit7 = true;     
+    }
+    
+    if (timer_underflow_bit7) {
+        timer_secondary_value = 1;
+    }
+    else {
+        timer_secondary_value = timer_prescaler;
+    }
+
+    
 }
 
 

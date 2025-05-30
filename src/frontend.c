@@ -16,7 +16,7 @@ TV tv = { .x=160, .y=0, .standard=TV_NTSC };
 
 int frames_so_far = 0;
 int color_clocks_this_frame = 0;
-int cpuCooldown = 2;
+unsigned long long color_clocks_in_total = 0;
 
 Color rgbaToRaylib( int rgba ) {
     return (Color) {
@@ -324,7 +324,9 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){538, 6}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%d", color_clocks_this_frame/3 );
     DrawTextEx(font, buf, (Vector2){405, 5}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%d", tv.y );
+    sprintf(buf, "%lld", color_clocks_in_total/3 );
+    DrawTextEx(font, buf, (Vector2){378, 68}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%d", tv.x>=160 ? tv.y+1 : tv.y );
     DrawTextEx(font, buf, (Vector2){521, 26}, fontSize, fontSpacing, fontColor);
     int pixel_pos = tv.x<160 ? tv.x : tv.x-228;
     sprintf(buf, "%d", pixel_pos );
@@ -333,9 +335,26 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){556, 89}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%d", cpu.cycle );
     DrawTextEx(font, buf, (Vector2){745, 5}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%d", cpuCooldown );
+    sprintf(buf, "%lld", color_clocks_in_total%3 );
     DrawTextEx(font, buf, (Vector2){913, 5}, fontSize, fontSpacing, fontColor);
     
+    // timer
+    sprintf(buf, "x" );
+    if (timer_prescaler==1)
+        DrawTextEx(font, buf, (Vector2){654, 485}, fontSize, fontSpacing, fontColor);
+    if (timer_prescaler==8)
+        DrawTextEx(font, buf, (Vector2){654, 502}, fontSize, fontSpacing, fontColor);
+    if (timer_prescaler==64)
+        DrawTextEx(font, buf, (Vector2){654, 519}, fontSize, fontSpacing, fontColor);
+    if (timer_prescaler==1024)
+        DrawTextEx(font, buf, (Vector2){654, 536}, fontSize, fontSpacing, fontColor);
+    
+    sprintf(buf, "%x", timer_primary_value );
+    DrawTextEx(font, buf, (Vector2){654, 562}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%x", timer_secondary_value );
+    DrawTextEx(font, buf, (Vector2){654, 579}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%c%c", timer_underflow_bit7?'1':'0', timer_underflow_bit6?'1':'0' );
+    DrawTextEx(font, buf, (Vector2){654, 596}, fontSize, fontSpacing, fontColor);
     
     
 }
@@ -358,30 +377,34 @@ void tick_atari(void) {
     tv.x++;
     color_clocks_this_frame++;
     
-    if (tv.x==160 && wsync) {
-        wsync = false;
-        cpuCooldown = 3;
-    }
-    else if (tv.x==228) {
+    
+    if (tv.x==228) {
         tv.x=0; tv.y++;
     }
-    if( prev_vsync_value && !vsync ) {
-        tv.x=0; tv.y=0;
-        frames_so_far++;
-        color_clocks_this_frame = 0;
-    }
+    
 
     // vsync
     prev_vsync_value = vsync;
 
     // execute an instruction when cpu is ready
-    if (cpuCooldown==0 && !wsync) {
-        cpu_run_for_one_machine_cycle();
-        cpuCooldown = 3;
+    if (color_clocks_in_total % 3 == 2) {
+        timer_tick();
+        if (!wsync) {
+            cpu_run_for_one_machine_cycle();
+        }
     }
 
-    cpuCooldown--;
-    if (cpuCooldown<0) cpuCooldown = 0;
+    if (tv.x==160 && wsync) {
+        wsync = false;
+    }
+
+    color_clocks_in_total++;
+
+    if( prev_vsync_value && !vsync ) {
+        tv.y=0;
+        frames_so_far++;
+        color_clocks_this_frame = 0;
+    }
 
 }
 
@@ -401,7 +424,7 @@ int main(void) {
         InitWindow(WINDOW_WIDTH_PX*4, WINDOW_HEIGHT_PX*2, "");
     #endif
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example11.a26", TV_NTSC, CARTRIDGE_4K);
+    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example12.a26", TV_NTSC, CARTRIDGE_4K);
     if (er) return 1;
 
     SetTargetFPS(60);
@@ -424,19 +447,19 @@ int main(void) {
                 else if( IsKeyPressed(KEY_TWO) || IsKeyPressedRepeat(KEY_TWO) ) {
                     do {
                         tick_atari();
-                    } while( !(cpuCooldown == 2 && cpu.cycle == 1 && !wsync) );
+                    } while( !(color_clocks_in_total%3==0 && cpu.cycle == 1 && !wsync) );
                 }
                 // advance one scanline
                 else if( IsKeyPressed(KEY_THREE) || IsKeyPressedRepeat(KEY_THREE) ) {
                     do {
                         tick_atari();
-                    } while( !(tv.x == 0) ); // cooldown might not be 2 here
+                    } while( !(tv.x == 160) );
                 }
                 // advance one frame
                 else if( IsKeyPressed(KEY_FOUR) || IsKeyPressedRepeat(KEY_FOUR) ) {
                     do {
                         tick_atari();
-                    } while( !(tv.y == 0 && tv.x == 0) );
+                    } while( !(color_clocks_this_frame==0) );
                 }
                 
                 // for (int i = 0; i<WINDOW_WIDTH_PX*WINDOW_HEIGHT_PX; i++) {

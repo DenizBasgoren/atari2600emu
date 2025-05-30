@@ -110,6 +110,11 @@
     void timer_TIM64T_write ( uint8_t value );
     void timer_T1024T_write ( uint8_t value );
     void timer_tick ( void );
+    extern unsigned char timer_primary_value;
+    extern int timer_secondary_value;
+    extern int timer_prescaler;
+    extern bool timer_underflow_bit7;
+    extern bool timer_underflow_bit6;
 
 
     typedef struct {

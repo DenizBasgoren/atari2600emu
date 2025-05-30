@@ -23,7 +23,7 @@ uint8_t swbcnt;
 uint8_t swcha;
 bool reset_btn_pressed;
 bool select_btn_pressed;
-bool color_on;
+bool color_on = 1;
 bool p0_expert_on;
 bool p1_expert_on;
 int input_mode; // joystick, paddle etc
@@ -106,7 +106,7 @@ uint8_t input_SWCHB_read ( void ) {
         | 1<<5
         | 1<<4
         | color_on<<3
-        | 0<<2
+        | 1<<2
         | !select_btn_pressed<<1
         | !reset_btn_pressed;
     return val & ~swbcnt;
