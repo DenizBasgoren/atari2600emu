@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "atari2600emulator.h"
 
@@ -439,59 +440,47 @@ void video_RESBL_write ( void ) {
 
 
 void video_GRP0_write ( uint8_t value ) {
-    if (player0.is_vertically_delayed) {
-        player0.value_that_will_become_sprite = value;
-    }
-    else {
-        player0.value_that_will_become_sprite = value;
-        player0.sprite[0] = value & (1<<7);
-        player0.sprite[1] = value & (1<<6);
-        player0.sprite[2] = value & (1<<5);
-        player0.sprite[3] = value & (1<<4);
-        player0.sprite[4] = value & (1<<3);
-        player0.sprite[5] = value & (1<<2);
-        player0.sprite[6] = value & (1<<1);
-        player0.sprite[7] = value & (1<<0);
-    }
+    player0.main_sprite[0] = value & (1<<7);
+    player0.main_sprite[1] = value & (1<<6);
+    player0.main_sprite[2] = value & (1<<5);
+    player0.main_sprite[3] = value & (1<<4);
+    player0.main_sprite[4] = value & (1<<3);
+    player0.main_sprite[5] = value & (1<<2);
+    player0.main_sprite[6] = value & (1<<1);
+    player0.main_sprite[7] = value & (1<<0);
     
-    player1.sprite[0] = player1.value_that_will_become_sprite & (1<<7);
-    player1.sprite[1] = player1.value_that_will_become_sprite & (1<<6);
-    player1.sprite[2] = player1.value_that_will_become_sprite & (1<<5);
-    player1.sprite[3] = player1.value_that_will_become_sprite & (1<<4);
-    player1.sprite[4] = player1.value_that_will_become_sprite & (1<<3);
-    player1.sprite[5] = player1.value_that_will_become_sprite & (1<<2);
-    player1.sprite[6] = player1.value_that_will_become_sprite & (1<<1);
-    player1.sprite[7] = player1.value_that_will_become_sprite & (1<<0);
+    player1.vdel_sprite[0] = player1.main_sprite[0];
+    player1.vdel_sprite[1] = player1.main_sprite[1];
+    player1.vdel_sprite[2] = player1.main_sprite[2];
+    player1.vdel_sprite[3] = player1.main_sprite[3];
+    player1.vdel_sprite[4] = player1.main_sprite[4];
+    player1.vdel_sprite[5] = player1.main_sprite[5];
+    player1.vdel_sprite[6] = player1.main_sprite[6];
+    player1.vdel_sprite[7] = player1.main_sprite[7];
 }
 
 
 
 void video_GRP1_write ( uint8_t value ) {
-    if (player1.is_vertically_delayed) {
-        player1.value_that_will_become_sprite = value;
-    }
-    else {
-        player1.value_that_will_become_sprite = value;
-        player1.sprite[0] = value & (1<<7);
-        player1.sprite[1] = value & (1<<6);
-        player1.sprite[2] = value & (1<<5);
-        player1.sprite[3] = value & (1<<4);
-        player1.sprite[4] = value & (1<<3);
-        player1.sprite[5] = value & (1<<2);
-        player1.sprite[6] = value & (1<<1);
-        player1.sprite[7] = value & (1<<0);
-    }
+    player1.main_sprite[0] = value & (1<<7);
+    player1.main_sprite[1] = value & (1<<6);
+    player1.main_sprite[2] = value & (1<<5);
+    player1.main_sprite[3] = value & (1<<4);
+    player1.main_sprite[4] = value & (1<<3);
+    player1.main_sprite[5] = value & (1<<2);
+    player1.main_sprite[6] = value & (1<<1);
+    player1.main_sprite[7] = value & (1<<0);
     
-    player0.sprite[0] = player0.value_that_will_become_sprite & (1<<7);
-    player0.sprite[1] = player0.value_that_will_become_sprite & (1<<6);
-    player0.sprite[2] = player0.value_that_will_become_sprite & (1<<5);
-    player0.sprite[3] = player0.value_that_will_become_sprite & (1<<4);
-    player0.sprite[4] = player0.value_that_will_become_sprite & (1<<3);
-    player0.sprite[5] = player0.value_that_will_become_sprite & (1<<2);
-    player0.sprite[6] = player0.value_that_will_become_sprite & (1<<1);
-    player0.sprite[7] = player0.value_that_will_become_sprite & (1<<0);
+    player0.vdel_sprite[0] = player0.main_sprite[0];
+    player0.vdel_sprite[1] = player0.main_sprite[1];
+    player0.vdel_sprite[2] = player0.main_sprite[2];
+    player0.vdel_sprite[3] = player0.main_sprite[3];
+    player0.vdel_sprite[4] = player0.main_sprite[4];
+    player0.vdel_sprite[5] = player0.main_sprite[5];
+    player0.vdel_sprite[6] = player0.main_sprite[6];
+    player0.vdel_sprite[7] = player0.main_sprite[7];
 
-    ball.sprite[0] = ball.value_that_will_become_sprite & (1<<1);
+    ball.vdel_sprite[0] = ball.main_sprite[0];
 }
 
 
@@ -509,7 +498,7 @@ void video_ENAM1_write ( uint8_t value ) {
 
 
 void video_ENABL_write ( uint8_t value ) {
-    ball.sprite[0] = value & (1<<1);
+    ball.main_sprite[0] = value & (1<<1);
 }
 
 
@@ -556,21 +545,18 @@ void video_HMBL_write ( uint8_t value ) {
 
 void video_VDELP0_write ( uint8_t value ) {
     player0.is_vertically_delayed = value & 1;
-    // TODO transfer to-be sprites to actual sprites?
 }
 
 
 
 void video_VDELP1_write ( uint8_t value ) {
     player1.is_vertically_delayed = value & 1;
-    // TODO transfer to-be sprites to actual sprites?
 }
 
 
 
 void video_VDELBL_write ( uint8_t value ) {
     ball.is_vertically_delayed = value & 1;
-    // TODO transfer to-be sprites to actual sprites?
 }
 
 
@@ -766,7 +752,8 @@ bool video_playfield_occupies_x( int x ) {
 
 bool video_ball_occupies_x( int x ) {
     if (x<0 || x>=160 ) return false;
-    if (!ball.sprite[0]) return false;
+    bool* effective_sprite = ball.is_vertically_delayed ? ball.vdel_sprite : ball.main_sprite;
+    if (!effective_sprite[0]) return false;
     for (int i=0; i<ball.size; i++) {
         if ( (video_ball_effective_x() + i ) % 160 == x ) return true;
     }
@@ -838,7 +825,11 @@ void video_calculate_effective_player_sprite( bool final_sprite[32], bool init_s
 bool video_player0_occupies_x( int x) {
     if (x<0 || x>=160 ) return false;
     bool effective_sprite[32] = {0};
-    video_calculate_effective_player_sprite(effective_sprite, player0.sprite, player0.size, player0.is_mirrored);
+    video_calculate_effective_player_sprite(
+        effective_sprite,
+        player0.is_vertically_delayed ? player0.vdel_sprite : player0.main_sprite,
+        player0.size,
+        player0.is_mirrored);
     int start = video_player0_effective_x();
     for (int i=0; i<player0.size; i++) {
         for (int j=0; j<player0.copies; j++) {
@@ -851,7 +842,11 @@ bool video_player0_occupies_x( int x) {
 bool video_player1_occupies_x( int x) {
     if (x<0 || x>=160 ) return false;
     bool effective_sprite[32] = {0};
-    video_calculate_effective_player_sprite(effective_sprite, player1.sprite, player1.size, player1.is_mirrored);
+    video_calculate_effective_player_sprite(
+        effective_sprite,
+        player1.is_vertically_delayed ? player1.vdel_sprite : player1.main_sprite,
+        player1.size,
+        player1.is_mirrored);
     int start = video_player1_effective_x();
     for (int i=0; i<player1.size; i++) {
         for (int j=0; j<player1.copies; j++) {

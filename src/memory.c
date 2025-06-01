@@ -70,7 +70,7 @@ void memory_write( uint16_t address, uint8_t value ) {
         // TIA write
         switch ( address & 0x3F) {
             case 0x00: return video_VSYNC_write(value); 
-            case 0x01: return video_VBLANK_write(value); 
+            case 0x01: return write_after_delay( video_VBLANK_write, true, value, 1);
             case 0x02: return video_WSYNC_write(); 
             case 0x03: return video_RSYNC_write(); 
             case 0x04: return video_NUSIZ0_write(value); 
@@ -80,11 +80,11 @@ void memory_write( uint16_t address, uint8_t value ) {
             case 0x08: return video_COLUPF_write(value); 
             case 0x09: return video_COLUBK_write(value); 
             case 0x0A: return video_CTRLPF_write(value); 
-            case 0x0B: return video_REFP0_write(value); 
-            case 0x0C: return video_REFP1_write(value); 
-            case 0x0D: return video_PF0_write(value); 
-            case 0x0E: return video_PF1_write(value); 
-            case 0x0F: return video_PF2_write(value); 
+            case 0x0B: return write_after_delay( video_REFP0_write, true, value, 1);
+            case 0x0C: return write_after_delay( video_REFP1_write, true, value, 1);
+            case 0x0D: return write_after_delay( video_PF0_write, true, value, 2);
+            case 0x0E: return write_after_delay( video_PF1_write, true, value, 2);
+            case 0x0F: return write_after_delay( video_PF2_write, true, value, 2);
             case 0x10: return video_RESP0_write(); 
             case 0x11: return video_RESP1_write(); 
             case 0x12: return video_RESM0_write(); 
@@ -96,23 +96,23 @@ void memory_write( uint16_t address, uint8_t value ) {
             case 0x18: return ; 
             case 0x19: return ; 
             case 0x1A: return ; 
-            case 0x1B: return video_GRP0_write(value); 
-            case 0x1C: return video_GRP1_write(value); 
-            case 0x1D: return video_ENAM0_write(value); 
-            case 0x1E: return video_ENAM1_write(value); 
-            case 0x1F: return video_ENABL_write(value); 
-            case 0x20: return video_HMP0_write(value); 
-            case 0x21: return video_HMP1_write(value); 
-            case 0x22: return video_HMM0_write(value); 
-            case 0x23: return video_HMM1_write(value); 
-            case 0x24: return video_HMBL_write(value); 
+            case 0x1B: return write_after_delay( video_GRP0_write, true, value, 1);
+            case 0x1C: return write_after_delay( video_GRP1_write, true, value, 1);
+            case 0x1D: return write_after_delay( video_ENAM0_write, true, value, 1);
+            case 0x1E: return write_after_delay( video_ENAM1_write, true, value, 1);
+            case 0x1F: return write_after_delay( video_ENABL_write, true, value, 1);
+            case 0x20: return write_after_delay( video_HMP0_write, true, value, 2);
+            case 0x21: return write_after_delay( video_HMP1_write, true, value, 2);
+            case 0x22: return write_after_delay( video_HMM0_write, true, value, 2);
+            case 0x23: return write_after_delay( video_HMM1_write, true, value, 2);
+            case 0x24: return write_after_delay( video_HMBL_write, true, value, 2);
             case 0x25: return video_VDELP0_write(value); 
             case 0x26: return video_VDELP1_write(value); 
             case 0x27: return video_VDELBL_write(value); 
             case 0x28: return video_RESMP0_write(value); 
             case 0x29: return video_RESMP1_write(value); 
-            case 0x2A: return video_HMOVE_write(); 
-            case 0x2B: return video_HMCLR_write(); 
+            case 0x2A: return write_after_delay( video_HMOVE_write, false, 0, 6);
+            case 0x2B: return write_after_delay( video_HMCLR_write, false, 0, 2);
             case 0x2C: return video_CXCLR_write(); 
         }
     }

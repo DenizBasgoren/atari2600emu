@@ -120,7 +120,8 @@
     typedef struct {
         int x; // 0..160
         int dx; // -8..7
-        bool sprite[8];
+        bool main_sprite[8];
+        bool vdel_sprite[8];
         int color; // rgba 32bit
         bool is_mirrored;
         bool collides_with_player1;
@@ -129,7 +130,7 @@
         bool collides_with_ball;
         bool collides_with_playfield;
         bool is_vertically_delayed;
-        uint8_t value_that_will_become_sprite;
+        // uint8_t value_that_will_become_sprite;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
         int size; // 8 16 32
@@ -138,7 +139,8 @@
     typedef struct {
         int x; // 0..160
         int dx; // -8..7
-        bool sprite[8];
+        bool main_sprite[8];
+        bool vdel_sprite[8];
         int color; // rgba 32bit
         bool is_mirrored;
         bool collides_with_missile0;
@@ -146,7 +148,7 @@
         bool collides_with_ball;
         bool collides_with_playfield;
         bool is_vertically_delayed;
-        uint8_t value_that_will_become_sprite;
+        // uint8_t value_that_will_become_sprite;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
         int size; // 8 16 32
@@ -183,11 +185,12 @@
         int x; // 0..160
         int dx; // -8..7
         int size; // 1 2 4 8
-        bool sprite[1];
+        bool main_sprite[1];
+        bool vdel_sprite[1];
         int color; // rgba 32bit
         bool collides_with_playfield;
         bool is_vertically_delayed;
-        uint8_t value_that_will_become_sprite;
+        // uint8_t value_that_will_become_sprite;
     } Ball;
 
     typedef struct {
@@ -353,5 +356,11 @@
     void input_SWBCNT_write ( uint8_t value );
     float input_paddle_load_amount(Paddle p);
     void input_register_inputs(void);
+
+
+
+
+    void tick_delayed_writes(void);
+    void write_after_delay( void* fn, bool withArg, uint8_t optionalArg, int delayInColorClocks );
 
 #endif

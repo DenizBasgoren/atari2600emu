@@ -13,6 +13,7 @@
                 "${workspaceFolder}/src/timer.c",
                 "${workspaceFolder}/src/audio.c",
                 "${workspaceFolder}/src/input.c",
+                "${workspaceFolder}/src/delayed_writer.c",
                 "-g",
                 "-O3",
                 "-lraylib",

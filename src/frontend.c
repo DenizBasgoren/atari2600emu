@@ -154,16 +154,23 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){636,96}, fontSize, 9, fontColor);
     
     // player0
-    sprintf(buf, "%c%c%c%c%c%c%c%c", player0.sprite[0]?'1':'0', 
-                                   player0.sprite[1]?'1':'0', 
-                                   player0.sprite[2]?'1':'0', 
-                                   player0.sprite[3]?'1':'0', 
-                                   player0.sprite[4]?'1':'0', 
-                                   player0.sprite[5]?'1':'0',
-                                   player0.sprite[6]?'1':'0',
-                                   player0.sprite[7]?'1':'0' );
+    sprintf(buf, "%c%c%c%c%c%c%c%c", player0.main_sprite[0]?'1':'0', 
+                                   player0.main_sprite[1]?'1':'0', 
+                                   player0.main_sprite[2]?'1':'0', 
+                                   player0.main_sprite[3]?'1':'0', 
+                                   player0.main_sprite[4]?'1':'0', 
+                                   player0.main_sprite[5]?'1':'0',
+                                   player0.main_sprite[6]?'1':'0',
+                                   player0.main_sprite[7]?'1':'0' );
     DrawTextEx(font, buf, (Vector2){36,433}, fontSize, 9, fontColor);
-    sprintf(buf, "%08hhb", player0.value_that_will_become_sprite);
+    sprintf(buf, "%c%c%c%c%c%c%c%c", player0.vdel_sprite[0]?'1':'0', 
+                                   player0.vdel_sprite[1]?'1':'0', 
+                                   player0.vdel_sprite[2]?'1':'0', 
+                                   player0.vdel_sprite[3]?'1':'0', 
+                                   player0.vdel_sprite[4]?'1':'0', 
+                                   player0.vdel_sprite[5]?'1':'0',
+                                   player0.vdel_sprite[6]?'1':'0',
+                                   player0.vdel_sprite[7]?'1':'0' );
     DrawTextEx(font, buf, (Vector2){36,454}, fontSize, 9, fontColor);
     sprintf(buf, "%c", player0.is_vertically_delayed?'1':'0' );
     DrawTextEx(font, buf, (Vector2){186,455}, fontSize, fontSpacing, fontColor);
@@ -177,16 +184,23 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){311,432}, fontSize, fontSpacing, fontColor);
     
     // player1
-    sprintf(buf, "%c%c%c%c%c%c%c%c", player1.sprite[0]?'1':'0', 
-                                   player1.sprite[1]?'1':'0', 
-                                   player1.sprite[2]?'1':'0', 
-                                   player1.sprite[3]?'1':'0', 
-                                   player1.sprite[4]?'1':'0', 
-                                   player1.sprite[5]?'1':'0',
-                                   player1.sprite[6]?'1':'0',
-                                   player1.sprite[7]?'1':'0' );
+    sprintf(buf, "%c%c%c%c%c%c%c%c", player1.main_sprite[0]?'1':'0', 
+                                   player1.main_sprite[1]?'1':'0', 
+                                   player1.main_sprite[2]?'1':'0', 
+                                   player1.main_sprite[3]?'1':'0', 
+                                   player1.main_sprite[4]?'1':'0', 
+                                   player1.main_sprite[5]?'1':'0',
+                                   player1.main_sprite[6]?'1':'0',
+                                   player1.main_sprite[7]?'1':'0' );
     DrawTextEx(font, buf, (Vector2){36,481}, fontSize, 9, fontColor);
-    sprintf(buf, "%08hhb", player1.value_that_will_become_sprite);
+    sprintf(buf, "%c%c%c%c%c%c%c%c", player1.vdel_sprite[0]?'1':'0', 
+                                   player1.vdel_sprite[1]?'1':'0', 
+                                   player1.vdel_sprite[2]?'1':'0', 
+                                   player1.vdel_sprite[3]?'1':'0', 
+                                   player1.vdel_sprite[4]?'1':'0', 
+                                   player1.vdel_sprite[5]?'1':'0',
+                                   player1.vdel_sprite[6]?'1':'0',
+                                   player1.vdel_sprite[7]?'1':'0' );
     DrawTextEx(font, buf, (Vector2){36,502}, fontSize, 9, fontColor);
     sprintf(buf, "%c", player1.is_vertically_delayed?'1':'0' );
     DrawTextEx(font, buf, (Vector2){186,503}, fontSize, fontSpacing, fontColor);
@@ -225,8 +239,10 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){178,548}, fontSize, fontSpacing, fontColor);
     
     // ball
-    sprintf(buf, "%c", ball.sprite[0]?'1':'0' );
+    sprintf(buf, "%c", ball.main_sprite[0]?'1':'0' );
     DrawTextEx(font, buf, (Vector2){36,569}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%c", ball.vdel_sprite[0]?'1':'0' );
+    DrawTextEx(font, buf, (Vector2){36,590}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%d", (int)log2(ball.size) );
     DrawTextEx(font, buf, (Vector2){249,569}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%c", ball.is_vertically_delayed?'1':'0' );
@@ -393,6 +409,7 @@ void tick_atari(void) {
             cpu_run_for_one_machine_cycle();
         }
     }
+    tick_delayed_writes();
 
     if (tv.x==160 && wsync) {
         wsync = false;
@@ -424,7 +441,7 @@ int main(void) {
         InitWindow(WINDOW_WIDTH_PX*4, WINDOW_HEIGHT_PX*2, "");
     #endif
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example12.a26", TV_NTSC, CARTRIDGE_4K);
+    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example26.a26", TV_NTSC, CARTRIDGE_4K);
     if (er) return 1;
 
     SetTargetFPS(60);
