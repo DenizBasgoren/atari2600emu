@@ -229,14 +229,14 @@ void input_register_inputs(void) {
     keypad1.key_pressed[3][2] = IsKeyDown(KEY_PERIOD);
 
     if (input_mode==INPUT_JOYSTICK) {
-        swcha = ~joystick0.right_pressed<<7
-            | ~joystick0.left_pressed<<6
-            | ~joystick0.down_pressed<<5
-            | ~joystick0.up_pressed<<4
-            | ~joystick1.right_pressed<<3
-            | ~joystick1.left_pressed<<2
-            | ~joystick1.down_pressed<<1
-            | ~joystick1.up_pressed;
+        swcha = !joystick0.right_pressed<<7
+            | !joystick0.left_pressed<<6
+            | !joystick0.down_pressed<<5
+            | !joystick0.up_pressed<<4
+            | !joystick1.right_pressed<<3
+            | !joystick1.left_pressed<<2
+            | !joystick1.down_pressed<<1
+            | !joystick1.up_pressed;
         
         if (vblank7) {
             inpt0 = inpt1 = inpt2 = inpt3 = 0;
@@ -248,21 +248,21 @@ void input_register_inputs(void) {
             inpt3 = joystick1.btn3_pressed<<7;
         }
         if (vblank6) {
-            inpt4 = ~joystick0.btn_pressed<<7;
-            inpt5 = ~joystick1.btn_pressed<<7;
+            inpt4 = !joystick0.btn_pressed<<7;
+            inpt5 = !joystick1.btn_pressed<<7;
         }
         else { // latched input
-            inpt4 &= ~joystick0.btn_pressed<<7;
-            inpt5 &= ~joystick1.btn_pressed<<7;
+            inpt4 &= !joystick0.btn_pressed<<7;
+            inpt5 &= !joystick1.btn_pressed<<7;
         }
     }
     else if (input_mode==INPUT_PADDLE) {
-        swcha = ~paddle0.btn_pressed<<7
-            | ~paddle1.btn_pressed<<6
+        swcha = !paddle0.btn_pressed<<7
+            | !paddle1.btn_pressed<<6
             | 0<<5
             | 0<<4
-            | ~paddle2.btn_pressed<<3
-            | ~paddle3.btn_pressed<<2
+            | !paddle2.btn_pressed<<3
+            | !paddle3.btn_pressed<<2
             | 0<<1
             | 0;
 
@@ -305,39 +305,39 @@ void input_register_inputs(void) {
             inpt0 = inpt1 = inpt2 = inpt3 = 0;
         }
         else {
-            inpt0 = ~(  keypad0_row0_selected && keypad0.key_pressed[0][0] ||
+            inpt0 = !(  keypad0_row0_selected && keypad0.key_pressed[0][0] ||
                         keypad0_row1_selected && keypad0.key_pressed[1][0] ||
                         keypad0_row2_selected && keypad0.key_pressed[2][0] ||
                         keypad0_row3_selected && keypad0.key_pressed[3][0])<<7;
-            inpt1 = ~(  keypad0_row0_selected && keypad0.key_pressed[0][1] ||
+            inpt1 = !(  keypad0_row0_selected && keypad0.key_pressed[0][1] ||
                         keypad0_row1_selected && keypad0.key_pressed[1][1] ||
                         keypad0_row2_selected && keypad0.key_pressed[2][1] ||
                         keypad0_row3_selected && keypad0.key_pressed[3][1])<<7;
-            inpt2 = ~(  keypad1_row0_selected && keypad1.key_pressed[0][0] ||
+            inpt2 = !(  keypad1_row0_selected && keypad1.key_pressed[0][0] ||
                         keypad1_row1_selected && keypad1.key_pressed[1][0] ||
                         keypad1_row2_selected && keypad1.key_pressed[2][0] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][0])<<7;
-            inpt3 = ~(  keypad1_row0_selected && keypad1.key_pressed[0][1] ||
+            inpt3 = !(  keypad1_row0_selected && keypad1.key_pressed[0][1] ||
                         keypad1_row1_selected && keypad1.key_pressed[1][1] ||
                         keypad1_row2_selected && keypad1.key_pressed[2][1] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][1])<<7;
         }
         if (vblank6) {
-            inpt4 = ~(  keypad0_row0_selected && keypad0.key_pressed[0][2] ||
+            inpt4 = !(  keypad0_row0_selected && keypad0.key_pressed[0][2] ||
                         keypad0_row1_selected && keypad0.key_pressed[1][2] ||
                         keypad0_row2_selected && keypad0.key_pressed[2][2] ||
                         keypad0_row3_selected && keypad0.key_pressed[3][2])<<7;
-            inpt5 = ~(  keypad1_row0_selected && keypad1.key_pressed[0][2] ||
+            inpt5 = !(  keypad1_row0_selected && keypad1.key_pressed[0][2] ||
                         keypad1_row1_selected && keypad1.key_pressed[1][2] ||
                         keypad1_row2_selected && keypad1.key_pressed[2][2] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][2])<<7;
         }
         else { // latched input
-            inpt4 &= ~( keypad0_row0_selected && keypad0.key_pressed[0][2] ||
+            inpt4 &= !( keypad0_row0_selected && keypad0.key_pressed[0][2] ||
                         keypad0_row1_selected && keypad0.key_pressed[1][2] ||
                         keypad0_row2_selected && keypad0.key_pressed[2][2] ||
                         keypad0_row3_selected && keypad0.key_pressed[3][2])<<7;
-            inpt5 &= ~( keypad1_row0_selected && keypad1.key_pressed[0][2] ||
+            inpt5 &= !( keypad1_row0_selected && keypad1.key_pressed[0][2] ||
                         keypad1_row1_selected && keypad1.key_pressed[1][2] ||
                         keypad1_row2_selected && keypad1.key_pressed[2][2] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][2])<<7;

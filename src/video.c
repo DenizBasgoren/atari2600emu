@@ -117,10 +117,6 @@ void video_VBLANK_write ( uint8_t value ) {
     vblank = value>>1 & 1;
     vblank6 = value>>6 & 1;
     vblank7 = value>>7 & 1;
-    if (vblank6==0) {
-        // disable latches to logic true
-        puts("VBLANK6==0 not impl yet");
-    }
 }
 
 
