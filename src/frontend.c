@@ -372,6 +372,20 @@ void draw_debug_frame(void) {
     sprintf(buf, "%c%c", timer_underflow_bit7?'1':'0', timer_underflow_bit6?'1':'0' );
     DrawTextEx(font, buf, (Vector2){654, 596}, fontSize, fontSpacing, fontColor);
     
+    // audio
+    sprintf(buf, "%2x", left.frequency );
+    DrawTextEx(font, buf, (Vector2){373, 167}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%1x", left.mode );
+    DrawTextEx(font, buf, (Vector2){382, 189}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%1x", left.volume );
+    DrawTextEx(font, buf, (Vector2){382, 211}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%2x", right.frequency );
+    DrawTextEx(font, buf, (Vector2){400, 167}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%1x", right.mode );
+    DrawTextEx(font, buf, (Vector2){400, 189}, fontSize, fontSpacing, fontColor);
+    sprintf(buf, "%1x", right.volume );
+    DrawTextEx(font, buf, (Vector2){400, 211}, fontSize, fontSpacing, fontColor);
+    
     
 }
 
@@ -427,24 +441,18 @@ void tick_atari(void) {
 
 int main(void) {
 
-    // printf("%d\n", (int)log2(0) );
-    // printf("%d\n", (int)log2(1.5) );
-    // printf("%d\n", (int)log2(-1) );
-
-    // return 0;
-
-
-
     #ifdef ATARI_DEBUG_MODE
         InitWindow(1156, 673, "");
+        static bool game_continued = false;
     #else
         InitWindow(WINDOW_WIDTH_PX*4, WINDOW_HEIGHT_PX*2, "");
     #endif
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example26.a26", TV_NTSC, CARTRIDGE_4K);
+    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example19.a26", TV_NTSC, CARTRIDGE_4K); // normally CARTRIDGE_4K
     if (er) return 1;
 
     SetTargetFPS(60);
+    audio_init();
 
     input_mode = INPUT_JOYSTICK;
 
@@ -478,10 +486,16 @@ int main(void) {
                         tick_atari();
                     } while( !(color_clocks_this_frame==0) );
                 }
+                // pause - resume
+                else if (IsKeyPressed(KEY_FIVE) || IsKeyPressedRepeat(KEY_FIVE) || game_continued) {
+                    for (int i = 0; i<62000; i++) {
+                        tick_atari();
+                    }
+                    if (IsKeyPressed(KEY_FIVE) || IsKeyPressedRepeat(KEY_FIVE)) {
+                        game_continued = !game_continued;
+                    }
+                }
                 
-                // for (int i = 0; i<WINDOW_WIDTH_PX*WINDOW_HEIGHT_PX; i++) {
-                //     tick_atari();
-                // }
                 draw_debug_frame();
                 input_register_inputs();
             #else
@@ -505,6 +519,9 @@ int main(void) {
             // DrawLine(0, (37+192)*2, WINDOW_WIDTH_PX*2, (37+192)*2, RED);
         EndDrawing();
     }
+
+    UnloadAudioStream(stream);   // Close raw audio stream and delete buffers from RAM
+    CloseAudioDevice();
 
     CloseWindow();
 

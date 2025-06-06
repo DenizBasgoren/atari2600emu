@@ -363,4 +363,26 @@
     void tick_delayed_writes(void);
     void write_after_delay( void* fn, bool withArg, uint8_t optionalArg, int delayInColorClocks );
 
+    
+    typedef struct {
+        int volume; // 0..15
+        int frequency; // 0..31
+        int mode; // 0..15
+
+        int poly4;
+        int poly5;
+        int poly9;
+        unsigned int counter;
+    } AudioChannel;
+
+    extern AudioChannel left, right;
+    extern AudioStream stream;
+    void audio_AUDC0_write ( uint8_t value );
+    void audio_AUDC1_write ( uint8_t value );
+    void audio_AUDF0_write ( uint8_t value );
+    void audio_AUDF1_write ( uint8_t value );
+    void audio_AUDV0_write ( uint8_t value );
+    void audio_AUDV1_write ( uint8_t value );
+    void audio_init( void );
+
 #endif

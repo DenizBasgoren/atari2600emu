@@ -90,12 +90,12 @@ void memory_write( uint16_t address, uint8_t value ) {
             case 0x12: return video_RESM0_write(); 
             case 0x13: return video_RESM1_write(); 
             case 0x14: return video_RESBL_write(); 
-            case 0x15: return ; // audio shit
-            case 0x16: return ; 
-            case 0x17: return ; 
-            case 0x18: return ; 
-            case 0x19: return ; 
-            case 0x1A: return ; 
+            case 0x15: return audio_AUDC0_write(value);
+            case 0x16: return audio_AUDC1_write(value);
+            case 0x17: return audio_AUDF0_write(value);
+            case 0x18: return audio_AUDF1_write(value);
+            case 0x19: return audio_AUDV0_write(value);
+            case 0x1A: return audio_AUDV1_write(value);
             case 0x1B: return write_after_delay( video_GRP0_write, true, value, 1);
             case 0x1C: return write_after_delay( video_GRP1_write, true, value, 1);
             case 0x1D: return write_after_delay( video_ENAM0_write, true, value, 1);

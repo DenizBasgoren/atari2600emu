@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 
 #include "atari2600emulator.h"
 
