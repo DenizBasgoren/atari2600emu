@@ -55,9 +55,6 @@
             } E0;
             struct {
                 int current_bank;
-            } _3F_;
-            struct {
-                int current_bank;
                 uint8_t extra_ram[256];
             } FA;
             struct {
@@ -68,9 +65,6 @@
             struct {
                 int current_bank;
             } F0;
-            struct {
-                int current_bank;
-            } UA;
         };
     } Cartridge;
 
@@ -80,7 +74,7 @@
     enum { TV_NTSC, TV_PAL, TV_SECAM, TV_MONOCHROME };
     enum { VIDEO_PRIORITY_NORMAL, VIDEO_PRIORITY_SCORE, VIDEO_PRIORITY_HIGH };
     enum { CARTRIDGE_2K, CARTRIDGE_4K, CARTRIDGE_CV, CARTRIDGE_F8, CARTRIDGE_F6, CARTRIDGE_F4, CARTRIDGE_FE,
-           CARTRIDGE_E0, CARTRIDGE_3F, CARTRIDGE_FA, CARTRIDGE_E7, CARTRIDGE_F0, CARTRIDGE_UA };
+           CARTRIDGE_E0, CARTRIDGE_FA, CARTRIDGE_E7, CARTRIDGE_F0 };
     enum { INPUT_JOYSTICK, INPUT_PADDLE, INPUT_KEYPAD };
 
     void memory_init_random( void );

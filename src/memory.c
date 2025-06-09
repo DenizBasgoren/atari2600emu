@@ -162,7 +162,6 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
             return cartridge.raw[address & 0xFFF];
         }
 
-        
         case CARTRIDGE_CV:
         {
             if (!A12) return 0;
@@ -176,8 +175,8 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
             if (!A12) return 0;
             if ( (address & 0x1FFF) == 0x1FF8 ) cartridge.F8.current_bank = 0;
             if ( (address & 0x1FFF) == 0x1FF9 ) cartridge.F8.current_bank = 1;
-            if ( cartridge.F8.current_bank == 0) return cartridge.raw[0x0000 + address & 0xFFF];
-            if ( cartridge.F8.current_bank == 1) return cartridge.raw[0x1000 + address & 0xFFF];
+            if ( cartridge.F8.current_bank == 0) return cartridge.raw[0x0000 + (address & 0xFFF)];
+            if ( cartridge.F8.current_bank == 1) return cartridge.raw[0x1000 + (address & 0xFFF)];
             return 0;
         }
 
@@ -188,10 +187,10 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
             if ( (address & 0x1FFF) == 0x1FF7 ) cartridge.F6.current_bank = 1;
             if ( (address & 0x1FFF) == 0x1FF8 ) cartridge.F6.current_bank = 2;
             if ( (address & 0x1FFF) == 0x1FF9 ) cartridge.F6.current_bank = 3;
-            if ( cartridge.F6.current_bank == 0) return cartridge.raw[0x0000 + address & 0xFFF];
-            if ( cartridge.F6.current_bank == 1) return cartridge.raw[0x1000 + address & 0xFFF];
-            if ( cartridge.F6.current_bank == 2) return cartridge.raw[0x2000 + address & 0xFFF];
-            if ( cartridge.F6.current_bank == 3) return cartridge.raw[0x3000 + address & 0xFFF];
+            if ( cartridge.F6.current_bank == 0) return cartridge.raw[0x0000 + (address & 0xFFF)];
+            if ( cartridge.F6.current_bank == 1) return cartridge.raw[0x1000 + (address & 0xFFF)];
+            if ( cartridge.F6.current_bank == 2) return cartridge.raw[0x2000 + (address & 0xFFF)];
+            if ( cartridge.F6.current_bank == 3) return cartridge.raw[0x3000 + (address & 0xFFF)];
             return 0;
         }
 
@@ -206,23 +205,24 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
             if ( (address & 0x1FFF) == 0x1FF9 ) cartridge.F4.current_bank = 5;
             if ( (address & 0x1FFF) == 0x1FFA ) cartridge.F4.current_bank = 6;
             if ( (address & 0x1FFF) == 0x1FFB ) cartridge.F4.current_bank = 7;
-            if ( cartridge.F4.current_bank == 0) return cartridge.raw[0x0000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 1) return cartridge.raw[0x1000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 2) return cartridge.raw[0x2000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 3) return cartridge.raw[0x3000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 4) return cartridge.raw[0x4000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 5) return cartridge.raw[0x5000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 6) return cartridge.raw[0x6000 + address & 0xFFF];
-            if ( cartridge.F4.current_bank == 7) return cartridge.raw[0x7000 + address & 0xFFF];
+            if ( cartridge.F4.current_bank == 0) return cartridge.raw[0x0000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 1) return cartridge.raw[0x1000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 2) return cartridge.raw[0x2000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 3) return cartridge.raw[0x3000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 4) return cartridge.raw[0x4000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 5) return cartridge.raw[0x5000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 6) return cartridge.raw[0x6000 + (address & 0xFFF)];
+            if ( cartridge.F4.current_bank == 7) return cartridge.raw[0x7000 + (address & 0xFFF)];
             return 0;
         }
 
+        // TODO: Only used in Decathln, but that game doesnt work
         case CARTRIDGE_FE:
         {
             if (!A12) return 0;
             if (A15 && A14) cartridge.FE.current_bank = A13;
-            if ( cartridge.FE.current_bank == 0) return cartridge.raw[0x0000 + address & 0xFFF];
-            if ( cartridge.FE.current_bank == 1) return cartridge.raw[0x1000 + address & 0xFFF];
+            if ( cartridge.FE.current_bank == 0) return cartridge.raw[0x0000 + (address & 0xFFF)];
+            if ( cartridge.FE.current_bank == 1) return cartridge.raw[0x1000 + (address & 0xFFF)];
             return 0;
         }
 
@@ -238,11 +238,6 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
             if (a>=0x1800 && a<=0x1BFF) return cartridge.raw[cartridge.E0.current_upper_bank * 0x400 + a-0x1800];
             if (a>=0x1C00 && a<=0x1FFF) return cartridge.raw[7 * 0x400 + a-0x1C00];
             return 0;
-        }
-
-        case CARTRIDGE_3F:
-        {
-            if (!A12) return 0;
         }
 
         case CARTRIDGE_FA:
@@ -303,11 +298,6 @@ uint8_t memory_access_cartridge( uint16_t address, uint8_t value ) {
                 cartridge.F0.current_bank %= 16;
             }
             return cartridge.raw[ cartridge.F0.current_bank * 0x1000 + a-0x1000 ];
-        }
-
-        case CARTRIDGE_UA:
-        {
-            if (!A12) return 0;
         }
 
 
