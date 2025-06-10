@@ -1,6 +1,7 @@
 // clang src/frontend.c src/cpu.c src/memory.c src/video.c src/timer.c src/audio.c src/input.c -lraylib -lm -g && ./a.out
 
 #include <raylib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -12,8 +13,10 @@
 // #include "raygui.h"
 
 
-TV tv = { .x=160, .y=0, .standard=TV_NTSC };
+TV tv = { .x=160, .y=0 };
 
+bool is_debug_mode;
+bool is_game_paused = false;
 int frames_so_far = 0;
 int color_clocks_this_frame = 0;
 unsigned long long color_clocks_in_total = 0;
@@ -28,7 +31,7 @@ Color rgbaToRaylib( int rgba ) {
 }
 
 
-int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type ) {
+int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type, int Input_mode, bool Is_debug_mode ) {
     int fd = open( gamefile_path, O_RDONLY);
     if (fd == -1) {
         perror("Can't open the rom file.\n");
@@ -45,18 +48,42 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type ) {
     cartridge.raw = rom;
     cartridge.type = cartridge_type;
     tv.standard = TV_standard;
+    input_mode = Input_mode;
+    is_debug_mode = Is_debug_mode;
 
+    if( is_debug_mode ) {
+        InitWindow(1156, 673, "");
+    }
+    else if (TV_standard==TV_NTSC) {
+        InitWindow(SCANLINE_WIDTH*4, 192*2, ""); // TODO: add +3 if needed
+        SetTargetFPS( 60 );
+    }
+    else { // PAL, SECAM
+        InitWindow(SCANLINE_WIDTH*4, 228*2, "");
+        SetTargetFPS( 50 );
+    }
+    
     cpu_go_to_reset_vector();
     memory_init_random();
     video_init_objects();
+    audio_init();
     return 0;
 }
 
 
 void draw_frame(void) {
-    for (int y= 0; y<WINDOW_HEIGHT_PX; y++) {
-        for (int x = 0; x<160; x++) {
-            DrawRectangle(4*x, 2*y, 4, 2, tv.pixels[y][x]);
+    if (tv.standard == TV_NTSC ) { // TODO: add +3 if needed
+        for (int y= 37; y<37+192; y++) {
+            for (int x = 0; x<SCANLINE_WIDTH; x++) {
+                DrawRectangle(4*x, 2*(y-37), 4, 2, tv.pixels[y][x]);
+            }
+        }
+    }
+    else { // PAL, SECAM
+        for (int y= 45; y<45+228; y++) {
+            for (int x = 0; x<SCANLINE_WIDTH; x++) {
+                DrawRectangle(4*x, 2*(y-45), 4, 2, tv.pixels[y][x]);
+            }
         }
     }
 }
@@ -82,11 +109,12 @@ void draw_debug_frame(void) {
     const Color fontColor = WHITE;
 
     // screen
-    for (int y= 0; y<WINDOW_HEIGHT_PX; y++) {
-        for (int x = 0; x<160; x++) {
+    for (int y= 0; y<SCANLINE_COUNT; y++) {
+        for (int x = 0; x<SCANLINE_WIDTH; x++) {
             DrawRectangle(2*x, y, 2, 1, tv.pixels[y][x]);
         }
     }
+   
 
     for (int i = 0; i<128; i++) {
         const int x_padding = 5;
@@ -289,11 +317,11 @@ void draw_debug_frame(void) {
 
     // vsync
     sprintf(buf, "%c", vsync?'1':'0' );
-    DrawTextEx(font, buf, (Vector2){9,311}, fontSize, fontSpacing, fontColor);
+    DrawTextEx(font, buf, (Vector2){348,281}, fontSize, fontSpacing, fontColor);
 
     // vblank0
     sprintf(buf, "%c", vblank?'1':'0' );
-    DrawTextEx(font, buf, (Vector2){102,310}, fontSize, fontSpacing, fontColor);
+    DrawTextEx(font, buf, (Vector2){441,280}, fontSize, fontSpacing, fontColor);
     // vblank6
     sprintf(buf, "%c", vblank6?'1':'0' );
     DrawTextEx(font, buf, (Vector2){831,540}, fontSize, fontSpacing, fontColor);
@@ -396,7 +424,7 @@ void tick_atari(void) {
     // determine what pixel to draw
     int rgba = video_calculate_pixel(tv.x);
     Color color = rgbaToRaylib(rgba);
-    if (tv.x < 160 && tv.y < 262) {
+    if (tv.x < SCANLINE_WIDTH && tv.y < SCANLINE_COUNT) {
         tv.pixels[tv.y][tv.x] = color;
     }
 
@@ -431,7 +459,8 @@ void tick_atari(void) {
 
     color_clocks_in_total++;
 
-    if( prev_vsync_value && !vsync ) {
+    // tv.y==SCANLINE_COUNT part is optional but it emulates CRT TV rolling effect
+    if( (prev_vsync_value && !vsync) || tv.y==SCANLINE_COUNT ) {
         tv.y=0;
         frames_so_far++;
         color_clocks_this_frame = 0;
@@ -441,29 +470,19 @@ void tick_atari(void) {
 
 int main(void) {
 
-    #ifdef ATARI_DEBUG_MODE
-        InitWindow(1156, 673, "");
-        static bool game_continued = false;
-    #else
-        InitWindow(WINDOW_WIDTH_PX*4, WINDOW_HEIGHT_PX*2, "");
-    #endif
+    
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example19.a26", TV_NTSC, CARTRIDGE_4K); // normally CARTRIDGE_4K
+    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example19.a26", TV_NTSC, CARTRIDGE_4K, INPUT_JOYSTICK, false); // normally CARTRIDGE_4K
     if (er) return 1;
 
-    SetTargetFPS(60);
-    audio_init();
 
-    input_mode = INPUT_JOYSTICK;
-
-    // RenderTexture2D target = LoadRenderTexture(virtualWidth, virtualHeight);
-
+    const int TICKS_PER_FRAME = tv.standard == TV_NTSC ? NTSC_TICKS_PER_FRAME : PAL_TICKS_PER_FRAME;
 
     while ( !WindowShouldClose()) {
 
         BeginDrawing();
 
-            #ifdef ATARI_DEBUG_MODE
+            if ( is_debug_mode ) {
                 // advance one color cycle
                 if( IsKeyPressed(KEY_ONE) || IsKeyPressedRepeat(KEY_ONE) ) {
                     tick_atari();
@@ -487,24 +506,25 @@ int main(void) {
                     } while( !(color_clocks_this_frame==0) );
                 }
                 // pause - resume
-                else if (IsKeyPressed(KEY_FIVE) || IsKeyPressedRepeat(KEY_FIVE) || game_continued) {
-                    for (int i = 0; i<62000; i++) {
+                else if (IsKeyPressed(KEY_FIVE) || IsKeyPressedRepeat(KEY_FIVE) || !is_game_paused) {
+                    for (int i = 0; i<TICKS_PER_FRAME; i++) {
                         tick_atari();
                     }
                     if (IsKeyPressed(KEY_FIVE) || IsKeyPressedRepeat(KEY_FIVE)) {
-                        game_continued = !game_continued;
+                        is_game_paused = !is_game_paused;
                     }
                 }
                 
                 draw_debug_frame();
                 input_register_inputs();
-            #else
-                for (int i = 0; i<62000; i++) {
+            }
+            else {
+                for (int i = 0; i<TICKS_PER_FRAME; i++) {
                     tick_atari();
                 }
                 draw_frame();
                 input_register_inputs();
-            #endif
+            }
             
             
             

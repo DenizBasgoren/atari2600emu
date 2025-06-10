@@ -15,7 +15,6 @@
     1A      AUDV1   ....1111  audio volume 1
 */
 
-#define AUDIO_LEN 512
 
 AudioChannel left = { .poly4=0xF, .poly5=0x1F, .poly9=0x1FF };
 AudioChannel right = { .poly4=0xF, .poly5=0x1F, .poly9=0x1FF };
@@ -39,10 +38,20 @@ void audio_AUDF1_write ( uint8_t value ) {
 
 void audio_AUDV0_write ( uint8_t value ) {
     left.volume = value & 15;
+    if (left.volume>0 || right.volume>0) {
+        PlayAudioStream(stream);
+    } else {
+        StopAudioStream(stream);
+    }
 }
 
 void audio_AUDV1_write ( uint8_t value ) {
     right.volume = value & 15;
+    if (left.volume>0 || right.volume>0) {
+        PlayAudioStream(stream);
+    } else {
+        StopAudioStream(stream);
+    }
 }
 
 // takes a state, applies poly4, returns new state
@@ -284,13 +293,15 @@ void audio_next_cb (void *buffer, unsigned int length) {
     
 }
 
+#define AUDIO_LEN 512
+
 void audio_init( void ) {
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_LEN);
-    stream = LoadAudioStream(32631, 8, 1);
-    // 32631 = (62000 color clocks per frame) * (60 frames per second) / (114 color clocks per audio tick)
+    stream = LoadAudioStream( tv.standard==TV_NTSC ? 31400 : 31113, 8, 1);
+    // 31400 = (3.579545 MHz) / (114 color clocks per audio tick)
+    // 31113 = (3.546894 MHz) / (114 color clocks per audio tick)
     // 8 bit depth but actually 4 bit, 1 channel
     SetAudioStreamCallback(stream, audio_next_cb );
-    PlayAudioStream(stream);
 }
 

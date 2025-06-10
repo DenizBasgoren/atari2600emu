@@ -247,13 +247,13 @@ void input_register_inputs(void) {
             inpt2 = joystick1.btn2_pressed<<7;
             inpt3 = joystick1.btn3_pressed<<7;
         }
-        if (vblank6) {
-            inpt4 = !joystick0.btn_pressed<<7;
-            inpt5 = !joystick1.btn_pressed<<7;
-        }
-        else { // latched input
+        if (vblank6) { // latched input
             inpt4 &= !joystick0.btn_pressed<<7;
             inpt5 &= !joystick1.btn_pressed<<7;
+        }
+        else {
+            inpt4 = !joystick0.btn_pressed<<7;
+            inpt5 = !joystick1.btn_pressed<<7;
         }
     }
     else if (input_mode==INPUT_PADDLE) {
@@ -322,22 +322,22 @@ void input_register_inputs(void) {
                         keypad1_row2_selected && keypad1.key_pressed[2][1] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][1])<<7;
         }
-        if (vblank6) {
-            inpt4 = !(  keypad0_row0_selected && keypad0.key_pressed[0][2] ||
-                        keypad0_row1_selected && keypad0.key_pressed[1][2] ||
-                        keypad0_row2_selected && keypad0.key_pressed[2][2] ||
-                        keypad0_row3_selected && keypad0.key_pressed[3][2])<<7;
-            inpt5 = !(  keypad1_row0_selected && keypad1.key_pressed[0][2] ||
-                        keypad1_row1_selected && keypad1.key_pressed[1][2] ||
-                        keypad1_row2_selected && keypad1.key_pressed[2][2] ||
-                        keypad1_row3_selected && keypad1.key_pressed[3][2])<<7;
-        }
-        else { // latched input
+        if (vblank6) { // latched input
             inpt4 &= !( keypad0_row0_selected && keypad0.key_pressed[0][2] ||
                         keypad0_row1_selected && keypad0.key_pressed[1][2] ||
                         keypad0_row2_selected && keypad0.key_pressed[2][2] ||
                         keypad0_row3_selected && keypad0.key_pressed[3][2])<<7;
             inpt5 &= !( keypad1_row0_selected && keypad1.key_pressed[0][2] ||
+                        keypad1_row1_selected && keypad1.key_pressed[1][2] ||
+                        keypad1_row2_selected && keypad1.key_pressed[2][2] ||
+                        keypad1_row3_selected && keypad1.key_pressed[3][2])<<7;
+        }
+        else {
+            inpt4 = !(  keypad0_row0_selected && keypad0.key_pressed[0][2] ||
+                        keypad0_row1_selected && keypad0.key_pressed[1][2] ||
+                        keypad0_row2_selected && keypad0.key_pressed[2][2] ||
+                        keypad0_row3_selected && keypad0.key_pressed[3][2])<<7;
+            inpt5 = !(  keypad1_row0_selected && keypad1.key_pressed[0][2] ||
                         keypad1_row1_selected && keypad1.key_pressed[1][2] ||
                         keypad1_row2_selected && keypad1.key_pressed[2][2] ||
                         keypad1_row3_selected && keypad1.key_pressed[3][2])<<7;
