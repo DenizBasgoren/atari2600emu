@@ -22,10 +22,20 @@ AudioStream stream;
 
 void audio_AUDC0_write ( uint8_t value ) {
     left.mode = value & 15;
+    if (left.volume>0 && left.mode!=0 && left.mode!=0xB || right.volume>0 && right.mode!=0 && right.mode!=0xB ) {
+        PlayAudioStream(stream);
+    } else {
+        StopAudioStream(stream);
+    }
 }
 
 void audio_AUDC1_write ( uint8_t value ) {
     right.mode = value & 15;
+    if (left.volume>0 && left.mode!=0 && left.mode!=0xB || right.volume>0 && right.mode!=0 && right.mode!=0xB ) {
+        PlayAudioStream(stream);
+    } else {
+        StopAudioStream(stream);
+    }
 }
 
 void audio_AUDF0_write ( uint8_t value ) {
@@ -38,7 +48,7 @@ void audio_AUDF1_write ( uint8_t value ) {
 
 void audio_AUDV0_write ( uint8_t value ) {
     left.volume = value & 15;
-    if (left.volume>0 || right.volume>0) {
+    if (left.volume>0 && left.mode!=0 && left.mode!=0xB || right.volume>0 && right.mode!=0 && right.mode!=0xB ) {
         PlayAudioStream(stream);
     } else {
         StopAudioStream(stream);
@@ -47,7 +57,7 @@ void audio_AUDV0_write ( uint8_t value ) {
 
 void audio_AUDV1_write ( uint8_t value ) {
     right.volume = value & 15;
-    if (left.volume>0 || right.volume>0) {
+    if (left.volume>0 && left.mode!=0 && left.mode!=0xB || right.volume>0 && right.mode!=0 && right.mode!=0xB ) {
         PlayAudioStream(stream);
     } else {
         StopAudioStream(stream);
@@ -85,7 +95,7 @@ int poly9( int state ) {
 bool audio_current_bit( AudioChannel ch ) {
     // mode=0  set to 1
     if ( ch.mode == 0 ) {
-        return 1;
+        return 0; // we set to 0 so that it doesnt mess with the algo here
     }
 
     // mode=1  4 bit poly
@@ -140,7 +150,7 @@ bool audio_current_bit( AudioChannel ch ) {
 
     // mode=B  set last 4 bits to 1
     else if ( ch.mode == 0xB ) {
-        return 1;
+        return 0; // we set to 0 so that it doesnt mess with the algo here
     }
 
     // mode=C  div 6 : pure tone

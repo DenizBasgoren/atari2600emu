@@ -28,8 +28,8 @@ bool p0_expert_on;
 bool p1_expert_on;
 int input_mode; // joystick, paddle etc
 bool vblank6, vblank7;
-uint8_t inpt0, inpt1, inpt2, inpt3;
-uint8_t inpt4, inpt5; // these are latched, so must be saved
+uint8_t inpt0=0x80, inpt1=0x80, inpt2=0x80, inpt3=0x80;
+uint8_t inpt4=0x80, inpt5=0x80; // these are latched, so must be saved
 Joystick joystick0, joystick1;
 Paddle paddle0, paddle1, paddle2, paddle3;
 Keypad keypad0, keypad1;

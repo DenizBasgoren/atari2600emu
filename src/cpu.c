@@ -8,8 +8,8 @@
 
 Cpu cpu;
 
-// note: 6B, CB, EB, 8B, AB, BF, 93, 9F, 9C, 9E, 9B are not implemented
-
+// note: 6B, 8B, AB, 93, 9F, 9C, 9E, 9B are not implemented
+// for illegal instructions refer to: https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
 
 uint8_t cpu_get_flags_as_integer( ) {
     return cpu.flag_n<<7
@@ -5985,10 +5985,76 @@ void cpu_run_for_one_machine_cycle ( void ) {
     // }
 
 
+
+    case 0xCB: // AXS_immediate
+    {
+        if (cpu.cycle==2) {
+            cpu.temp1 = memory_read(cpu.pc + 1);
+            int difference = (cpu.a & cpu.x) - cpu.temp1;
+            cpu.flag_c = difference>=0;
+            cpu_update_nz_flags(difference);
+            cpu.x = difference;
+            cpu.pc += 2;
+            cpu.cycle = 1;
+        }
+        return;
+    }
+
+    case 0xEB: // SBC_NOP_immediate
+    {
+        if (cpu.cycle==2) {
+            uint8_t arg2 = memory_read(cpu.pc + 1);
+            if (cpu.flag_d) {
+                cpu_subtract_in_bcd_mode(arg2);
+            }
+            else {
+                int temp = cpu.a + cpu.flag_c - 1 - arg2;
+                cpu_update_cv_flags_subtraction(cpu.a, arg2, cpu.flag_c);
+                cpu.a = temp;
+                cpu_update_nz_flags(cpu.a);
+            }
+            cpu.pc += 2;
+            cpu.cycle = 1;
+        }
+        return;
+    }
+
+    case 0xBF: // LAX_absolute_y
+    {
+        if (cpu.cycle==2) {
+            cpu.temp1 = memory_read(cpu.pc + 1);
+            cpu.cycle++;
+        }
+        else if (cpu.cycle==3) {
+            cpu.temp2 = memory_read(cpu.pc + 2);
+            cpu.cycle++;
+        }
+        else if (cpu.cycle==4) {
+            uint16_t real_addr = (cpu.temp2<<8 | cpu.temp1) + cpu.y;
+            uint16_t temp_addr = cpu.temp2<<8 | ((cpu.temp1 + cpu.y) % 256);
+            cpu.x = cpu.a = memory_read(temp_addr);
+            cpu.cycle++;
+            if (temp_addr == real_addr) {
+                cpu_update_nz_flags(cpu.a);
+                cpu.pc += 3;
+                cpu.cycle = 1;
+            }
+        }
+        else if (cpu.cycle==5) {
+            uint16_t real_addr = (cpu.temp2<<8 | cpu.temp1) + cpu.y;
+            cpu.x = cpu.a = memory_read(real_addr);
+            cpu_update_nz_flags(cpu.a);
+            cpu.pc += 3;
+            cpu.cycle = 1;
+        }
+        return;
+    }
+
+
     
 
     default:
-        perror("Unknown opcode!");
+        fprintf(stderr, "Unknown opcode %2hhx at pc=%4hx! \n", cpu.opcode, cpu.pc);
         exit(1);
     };
 

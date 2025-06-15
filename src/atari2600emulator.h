@@ -112,7 +112,7 @@
 
     typedef struct {
         int x; // 0..160
-        int dx; // -8..7
+        int hm_value; // 0..15
         bool main_sprite[8];
         bool vdel_sprite[8];
         int color; // rgba 32bit
@@ -123,6 +123,7 @@
         bool collides_with_ball;
         bool collides_with_playfield;
         bool is_vertically_delayed;
+        bool is_reset_this_scanline;
         // uint8_t value_that_will_become_sprite;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
@@ -131,7 +132,7 @@
 
     typedef struct {
         int x; // 0..160
-        int dx; // -8..7
+        int hm_value; // 0..15
         bool main_sprite[8];
         bool vdel_sprite[8];
         int color; // rgba 32bit
@@ -141,6 +142,7 @@
         bool collides_with_ball;
         bool collides_with_playfield;
         bool is_vertically_delayed;
+        bool is_reset_this_scanline;
         // uint8_t value_that_will_become_sprite;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
@@ -149,13 +151,14 @@
 
     typedef struct {
         int x; // 0..160
-        int dx; // -8..7
+        int hm_value; // 0..15
         int size; // 1 2 4 8
         bool sprite[1];
         int color; // rgba 32bit
         bool collides_with_missile1;
         bool collides_with_ball;
         bool collides_with_playfield;
+        bool is_reset_this_scanline;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
         bool is_locked_on_player;
@@ -163,12 +166,13 @@
 
     typedef struct {
         int x; // 0..160
-        int dx; // -8..7
+        int hm_value; // 0..15
         int size; // 1 2 4 8
         bool sprite[1];
         int color; // rgba 32bit
         bool collides_with_ball;
         bool collides_with_playfield;
+        bool is_reset_this_scanline;
         int copies; // 1 2 3
         int distance_between_copies; // 16 32 64
         bool is_locked_on_player;
@@ -176,13 +180,14 @@
 
     typedef struct {
         int x; // 0..160
-        int dx; // -8..7
+        int hm_value; // 0..15
         int size; // 1 2 4 8
         bool main_sprite[1];
         bool vdel_sprite[1];
         int color; // rgba 32bit
         bool collides_with_playfield;
         bool is_vertically_delayed;
+        bool is_reset_this_scanline;
         // uint8_t value_that_will_become_sprite;
     } Ball;
 
@@ -205,7 +210,7 @@
     extern bool vblank;
     extern bool wsync;
     extern int video_priority;
-    extern uint8_t debug_nusiz0, debug_nusiz1, debug_hmp0, debug_hmp1, debug_hmm0, debug_hmm1, debug_hmbl;
+    extern uint8_t debug_nusiz0, debug_nusiz1;
 
 
     #define SCANLINE_WIDTH 160

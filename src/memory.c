@@ -85,11 +85,11 @@ void memory_write( uint16_t address, uint8_t value ) {
             case 0x0D: return write_after_delay( video_PF0_write, true, value, 2);
             case 0x0E: return write_after_delay( video_PF1_write, true, value, 2);
             case 0x0F: return write_after_delay( video_PF2_write, true, value, 2);
-            case 0x10: return video_RESP0_write(); 
-            case 0x11: return video_RESP1_write(); 
-            case 0x12: return video_RESM0_write(); 
-            case 0x13: return video_RESM1_write(); 
-            case 0x14: return video_RESBL_write(); 
+            case 0x10: return write_after_delay( video_RESP0_write, false, 0, 5); 
+            case 0x11: return write_after_delay( video_RESP1_write, false, 0, 5);
+            case 0x12: return write_after_delay( video_RESM0_write, false, 0, 4);
+            case 0x13: return write_after_delay( video_RESM1_write, false, 0, 4);
+            case 0x14: return write_after_delay( video_RESBL_write, false, 0, 4);
             case 0x15: return audio_AUDC0_write(value);
             case 0x16: return audio_AUDC1_write(value);
             case 0x17: return audio_AUDF0_write(value);

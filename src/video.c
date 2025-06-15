@@ -1,6 +1,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "atari2600emulator.h"
 
@@ -68,7 +69,7 @@ bool vsync;
 bool vblank;
 bool wsync;
 
-uint8_t debug_nusiz0, debug_nusiz1, debug_hmp0, debug_hmp1, debug_hmm0, debug_hmm1, debug_hmbl;
+uint8_t debug_nusiz0, debug_nusiz1;
 
 void video_init_objects( void ) {
     player0.color = 0x000000ff; // black
@@ -148,7 +149,7 @@ void video_RSYNC_write ( void ) {
 
 
 void video_NUSIZ0_write ( uint8_t value ) {
-    debug_nusiz0 = value & 3;
+    debug_nusiz0 = value & 7;
 
     switch (value>>4 & 3) {
         case 0: missile0.size = 1; break;
@@ -157,7 +158,7 @@ void video_NUSIZ0_write ( uint8_t value ) {
         case 3: missile0.size = 8; break;
     }
 
-    switch (value & 3) {
+    switch (value & 7) {
         case 0: {
             missile0.copies = player0.copies = 1;
             missile0.distance_between_copies = player0.distance_between_copies = 0;
@@ -213,7 +214,7 @@ void video_NUSIZ0_write ( uint8_t value ) {
 
 
 void video_NUSIZ1_write ( uint8_t value ) {
-    debug_nusiz1 = value & 3;
+    debug_nusiz1 = value & 7;
 
     switch (value>>4 & 3) {
         case 0: missile1.size = 1; break;
@@ -222,7 +223,7 @@ void video_NUSIZ1_write ( uint8_t value ) {
         case 3: missile1.size = 8; break;
     }
 
-    switch (value & 3) {
+    switch (value & 7) {
         case 0: {
             missile1.copies = player1.copies = 1;
             missile1.distance_between_copies = player1.distance_between_copies = 0;
@@ -388,47 +389,45 @@ void video_PF2_write ( uint8_t value ) {
 // https://www.youtube.com/watch?v=sJFnWZH5FXc see 12:47. mentions 4px, 5px, 6px
 void video_RESP0_write ( void ) {
     if (player0.size > 8) {
-        player0.x = (tv.x<160) ? (tv.x+6)%160 : 4;
-        // player0.x = (tv.x+2<160) ? (tv.x+2+6)%160 : 4;
+        player0.x = (tv.x<160) ? (tv.x+1)%160 : 4;
     }
     else {
-        player0.x = (tv.x<160) ? (tv.x+5)%160 : 3;
-        // player0.x = (tv.x+2<160) ? (tv.x+2+5)%160 : 3;
+        player0.x = (tv.x<160) ? (tv.x)%160 : 3;
     }
+    player0.is_reset_this_scanline = true;
 }
 
 
 
 void video_RESP1_write ( void ) {
     if (player1.size > 8) {
-        player1.x = (tv.x<160) ? (tv.x+6)%160 : 4;
-        // player1.x = (tv.x<158) ? (tv.x+8)%160 : 4;
+        player1.x = (tv.x<160) ? (tv.x+1)%160 : 4;
     }
     else {
-        player1.x = (tv.x<160) ? (tv.x+5)%160 : 3;
-        // player1.x = (tv.x<158) ? (tv.x+7)%160 : 3;
+        player1.x = (tv.x<160) ? (tv.x)%160 : 3;
     }
+    player1.is_reset_this_scanline = true;
 }
 
 
 
 void video_RESM0_write ( void ) {
-    missile0.x = (tv.x<160) ? (tv.x+4)%160 : 2;
-    // missile0.x = (tv.x<158) ? (tv.x+6)%160 : 2;
+    missile0.x = (tv.x<160) ? (tv.x)%160 : 2;
+    missile0.is_reset_this_scanline = true;
 }
 
 
 
 void video_RESM1_write ( void ) {
-    missile1.x = (tv.x<160) ? (tv.x+4)%160 : 2;
-    // missile1.x = (tv.x<158) ? (tv.x+6)%160 : 2;
+    missile1.x = (tv.x<160) ? (tv.x)%160 : 2;
+    missile1.is_reset_this_scanline = true;
 }
 
 
 
 void video_RESBL_write ( void ) {
-    ball.x = (tv.x<160) ? (tv.x+4)%160 : 2;
-    // ball.x = (tv.x<158) ? (tv.x+6)%160 : 2;
+    ball.x = (tv.x<160) ? (tv.x)%160 : 2;
+    ball.is_reset_this_scanline = true;
 }
 
 
@@ -496,43 +495,33 @@ void video_ENABL_write ( uint8_t value ) {
 }
 
 
-int video_horizontal_movement_helper( uint8_t value ) {
-    int dx = (value & 0xF0) >> 4;
-    if (dx > 7) dx -= 16;
-    return -dx;
-}
 
 void video_HMP0_write ( uint8_t value ) {
-    debug_hmp0 = (value & 0xF0) >> 4;
-    player0.dx = video_horizontal_movement_helper(value);
+    player0.hm_value = (value >> 4) & 15;
 }
 
 
 
 void video_HMP1_write ( uint8_t value ) {
-    debug_hmp1 = (value & 0xF0) >> 4;
-    player1.dx = video_horizontal_movement_helper(value);
+    player1.hm_value = (value >> 4) & 15;
 }
 
 
 
 void video_HMM0_write ( uint8_t value ) {
-    debug_hmm0 = (value & 0xF0) >> 4;
-    missile0.dx = video_horizontal_movement_helper(value);
+    missile0.hm_value = (value >> 4) & 15;
 }
 
 
 
 void video_HMM1_write ( uint8_t value ) {
-    debug_hmm1 = (value & 0xF0) >> 4;
-    missile1.dx = video_horizontal_movement_helper(value);
+    missile1.hm_value = (value >> 4) & 15;
 }
 
 
 
 void video_HMBL_write ( uint8_t value ) {
-    debug_hmbl = (value & 0xF0) >> 4;
-    ball.dx = video_horizontal_movement_helper(value);
+    ball.hm_value = (value >> 4) & 15;
 }
 
 
@@ -570,21 +559,50 @@ void video_RESMP1_write ( uint8_t value ) {
 void video_HMOVE_write ( void ) {
     // chatgpt claims repeated HMOVE calls don't accumulate dx, but it actually does
     // dont trust chatgpt, analyze working emulators instead
-    player0.x = (player0.x + player0.dx + 160) % 160;
-    player1.x = (player1.x + player1.dx + 160) % 160;
-    missile0.x = (missile0.x + missile0.dx + 160) % 160;
-    missile1.x = (missile1.x + missile1.dx + 160) % 160;
-    ball.x = (ball.x + ball.dx + 160) % 160;
+
+    // values here are obtained experimentally using Stella's debugger.
+    // basically, HMOVE offsets depend on HMxx AND the tv.x variable!
+    // same list can be found at https://www.biglist.com/lists/stella/archives/199804/msg00198.html
+    static int offsets[16][76] = {
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -2, -3, -4, -5, -5, -6, -7, -8, -8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -3, -4, -5, -6, -6, -7, -8, -9, -9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -2, -3, -4, -4, -5, -6, -7, -7, -8, -9, -10, -10, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -2, -3, -4, -5, -5, -6, -7, -8, -8, -9, -10, -11, -11, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -3, -4, -5, -6, -6, -7, -8, -9, -9, -10, -11, -12, -12, -4, -4, -4, -4, -4, -4, -4, -4, -4, -3, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -2, -3, -4, -4, -5, -6, -7, -7, -8, -9, -10, -10, -11, -12, -13, -13, -5, -5, -5, -5, -5, -5, -5, -5, -4, -3, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -2, -3, -4, -5, -5, -6, -7, -8, -8, -9, -10, -11, -11, -12, -13, -14, -14, -6, -6, -6, -6, -6, -6, -5, -5, -4, -3, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -3, -4, -5, -6, -6, -7, -8, -9, -9, -10, -11, -12, -12, -13, -14, -15, -15, -7, -7, -7, -7, -7, -6, -5, -5, -4, -3, -2, -2, -1, 0, 1, 1, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -2, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -3, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -2, -3, -4, -4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -2, -3, -4, -5, -5, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -3, -4, -5, -6, -6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 4, 4, 5, 6},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -2, -3, -4, -4, -5, -6, -7, -7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5, 6}
+    };
+
+    // this if statement should never be true
+    if (tv.x < 0 || tv.x >= 228) {
+        printf("unreachable %d\n", tv.x );
+        return;
+    };
+
+    player0.x =  (player0.x +  offsets[player0.hm_value][tv.x/3]  + 160) % 160;
+    player1.x =  (player1.x +  offsets[player1.hm_value][tv.x/3]  + 160) % 160;
+    missile0.x = (missile0.x + offsets[missile0.hm_value][tv.x/3] + 160) % 160;
+    missile1.x = (missile1.x + offsets[missile1.hm_value][tv.x/3] + 160) % 160;
+    ball.x =     (ball.x +     offsets[ball.hm_value][tv.x/3]     + 160) % 160;
 }
 
 
 
 void video_HMCLR_write ( void ) {
-    player0.dx = 0;
-    player1.dx = 0;
-    missile0.dx = 0;
-    missile1.dx = 0;
-    ball.dx = 0;
+    player0.hm_value = 0;
+    player1.hm_value = 0;
+    missile0.hm_value = 0;
+    missile1.hm_value = 0;
+    ball.hm_value = 0;
 }
 
 
@@ -748,6 +766,7 @@ bool video_ball_occupies_x( int x ) {
     if (x<0 || x>=160 ) return false;
     bool* effective_sprite = ball.is_vertically_delayed ? ball.vdel_sprite : ball.main_sprite;
     if (!effective_sprite[0]) return false;
+    if ( ball.is_reset_this_scanline ) return false;
     for (int i=0; i<ball.size; i++) {
         if ( (video_ball_effective_x() + i ) % 160 == x ) return true;
     }
@@ -760,6 +779,7 @@ bool video_missile0_occupies_x( int x ) {
     int start = video_missile0_effective_x();
     for (int i=0; i<missile0.size; i++) {
         for (int j=0; j<missile0.copies; j++) {
+            if ( missile0.is_reset_this_scanline && j==0 ) continue;
             if ( (start + i + j*missile0.distance_between_copies) % 160 == x ) return true;
         }
     }
@@ -773,6 +793,7 @@ bool video_missile1_occupies_x( int x ) {
     int start = video_missile1_effective_x();
     for (int i=0; i<missile1.size; i++) {
         for (int j=0; j<missile1.copies; j++) {
+            if ( missile1.is_reset_this_scanline && j==0 ) continue;
             if ( (start + i + j*missile1.distance_between_copies) % 160 == x ) return true;
         }
     }
@@ -827,6 +848,7 @@ bool video_player0_occupies_x( int x) {
     int start = video_player0_effective_x();
     for (int i=0; i<player0.size; i++) {
         for (int j=0; j<player0.copies; j++) {
+            if ( player0.is_reset_this_scanline && j==0 ) continue;
             if ( (start + i + j*player0.distance_between_copies) % 160 == x ) return effective_sprite[i];
         }
     }
@@ -844,6 +866,7 @@ bool video_player1_occupies_x( int x) {
     int start = video_player1_effective_x();
     for (int i=0; i<player1.size; i++) {
         for (int j=0; j<player1.copies; j++) {
+            if ( player1.is_reset_this_scanline && j==0 ) continue;
             if ( (start + i + j*player1.distance_between_copies) % 160 == x ) return effective_sprite[i];
         }
     }

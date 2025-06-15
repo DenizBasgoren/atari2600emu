@@ -16,7 +16,7 @@
 TV tv = { .x=160, .y=0 };
 
 bool is_debug_mode;
-bool is_game_paused = false;
+bool is_game_paused = true;
 int frames_so_far = 0;
 int color_clocks_this_frame = 0;
 unsigned long long color_clocks_in_total = 0;
@@ -47,6 +47,7 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type, int 
     memset( &cartridge, 0, sizeof(Cartridge) );
     cartridge.raw = rom;
     cartridge.type = cartridge_type;
+    cartridge.F8.current_bank = 1;
     tv.standard = TV_standard;
     input_mode = Input_mode;
     is_debug_mode = Is_debug_mode;
@@ -55,7 +56,7 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type, int 
         InitWindow(1156, 673, "");
     }
     else if (TV_standard==TV_NTSC) {
-        InitWindow(SCANLINE_WIDTH*4, 192*2, ""); // TODO: add +3 if needed
+        InitWindow(SCANLINE_WIDTH*4, 198*2, "");
         SetTargetFPS( 60 );
     }
     else { // PAL, SECAM
@@ -72,8 +73,8 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type, int 
 
 
 void draw_frame(void) {
-    if (tv.standard == TV_NTSC ) { // TODO: add +3 if needed
-        for (int y= 37; y<37+192; y++) {
+    if (tv.standard == TV_NTSC ) {
+        for (int y= 37; y<37+198; y++) {
             for (int x = 0; x<SCANLINE_WIDTH; x++) {
                 DrawRectangle(4*x, 2*(y-37), 4, 2, tv.pixels[y][x]);
             }
@@ -208,7 +209,7 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){226,432}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%1hhX", debug_nusiz0 );
     DrawTextEx(font, buf, (Vector2){311,453}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%1hhX", debug_hmp0 );
+    sprintf(buf, "%1X", player0.hm_value );
     DrawTextEx(font, buf, (Vector2){311,432}, fontSize, fontSpacing, fontColor);
     
     // player1
@@ -238,7 +239,7 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){226,480}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%1hhX", debug_nusiz1 );
     DrawTextEx(font, buf, (Vector2){311,501}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%1hhX", debug_hmp1 );
+    sprintf(buf, "%1X", player1.hm_value );
     DrawTextEx(font, buf, (Vector2){311,480}, fontSize, fontSpacing, fontColor);
     
     // missile0
@@ -250,7 +251,7 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){249,529}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%4d", missile0.x );
     DrawTextEx(font, buf, (Vector2){107,528}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%1hhX", debug_hmm0 );
+    sprintf(buf, "%1X", missile0.hm_value );
     DrawTextEx(font, buf, (Vector2){178,528}, fontSize, fontSpacing, fontColor);
     
 
@@ -263,7 +264,7 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){249,549}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%4d", missile1.x );
     DrawTextEx(font, buf, (Vector2){107,548}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%1hhX", debug_hmm1 );
+    sprintf(buf, "%1X", missile1.hm_value );
     DrawTextEx(font, buf, (Vector2){178,548}, fontSize, fontSpacing, fontColor);
     
     // ball
@@ -277,7 +278,7 @@ void draw_debug_frame(void) {
     DrawTextEx(font, buf, (Vector2){67,591}, fontSize, fontSpacing, fontColor);
     sprintf(buf, "%4d", ball.x );
     DrawTextEx(font, buf, (Vector2){107,568}, fontSize, fontSpacing, fontColor);
-    sprintf(buf, "%1hhX", debug_hmbl );
+    sprintf(buf, "%1X", ball.hm_value );
     DrawTextEx(font, buf, (Vector2){178,568}, fontSize, fontSpacing, fontColor);
     
     
@@ -438,6 +439,11 @@ void tick_atari(void) {
     
     if (tv.x==228) {
         tv.x=0; tv.y++;
+        player0.is_reset_this_scanline = false;
+        player1.is_reset_this_scanline = false;
+        missile0.is_reset_this_scanline = false;
+        missile1.is_reset_this_scanline = false;
+        ball.is_reset_this_scanline = false;
     }
     
 
@@ -540,6 +546,7 @@ int main(void) {
         EndDrawing();
     }
 
+    StopAudioStream(stream);
     UnloadAudioStream(stream);   // Close raw audio stream and delete buffers from RAM
     CloseAudioDevice();
 

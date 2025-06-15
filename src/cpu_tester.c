@@ -207,10 +207,7 @@ int main(void) {
 
     for (int i = 0x0; i<256; i++) {
 
-        if (i==0x0B || i==0x2B || i==0x4B || i==0x6B || i==0xCB || i==0xEB || i==0xBB ||
-        i==0x8B || i==0xAB || i==0xBF || i==0x93 || i==0x9F || i==0x9C || i==0x9E || i==0x9B  ) continue;
-
-        // if (i!=0x9C) continue;
+        // if (i==0x6B || i==0x8B || i==0xAB || i==0x93 || i==0x9F || i==0x9C || i==0x9E || i==0x9B  ) continue;
 
         char *c = "/home/korsan/proj/atari2600emu/cpu_tests/%02hhx.json";
         char filename[100] = {0};
