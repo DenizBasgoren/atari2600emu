@@ -9,7 +9,11 @@
 Cpu cpu;
 
 // note: 6B, 8B, AB, 93, 9F, 9C, 9E, 9B are not implemented
-// for illegal instructions refer to: https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
+// for illegal instructions refer to:
+//   https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
+//   https://www.nesdev.org/6502_cpu.txt
+//   https://www.nesdev.org/extra_instructions.txt
+//   https://www.nesdev.org/undocumented_opcodes.txt
 
 uint8_t cpu_get_flags_as_integer( ) {
     return cpu.flag_n<<7

@@ -1,4 +1,4 @@
-// clang src/frontend.c src/cpu.c src/memory.c src/video.c src/timer.c src/audio.c src/input.c -lraylib -lm -g && ./a.out
+// clang src/frontend.c src/cpu.c src/memory.c src/video.c src/timer.c src/audio.c src/input.c src/delayed_writer.c -lraylib -lm -g && ./a.out
 
 #include <raylib.h>
 #include <stdbool.h>
@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 #include "atari2600emulator.h"
 
 // #define RAYGUI_IMPLEMENTATION
@@ -51,6 +52,8 @@ int prepare_game( char *gamefile_path, int TV_standard, int cartridge_type, int 
     tv.standard = TV_standard;
     input_mode = Input_mode;
     is_debug_mode = Is_debug_mode;
+
+    SetTraceLogLevel(LOG_NONE);
 
     if( is_debug_mode ) {
         InitWindow(1156, 673, "");
@@ -474,11 +477,275 @@ void tick_atari(void) {
 
 }
 
-int main(void) {
+typedef struct {
+    char *gamePath;
+    int tv_standard;
+    int input_controller_type;
+    int cartridge_type;
+    bool start_in_debugger_mode;
+} EmulatorConfig;
+
+void print_argument_requirements( char* emu_path ) {
+    printf("Usage:\n");
+    printf("%s <gamePath> <tvStandard> <inputControllerType> <cartridgeType> <startInDebuggerMode>\n", emu_path);
+    printf("\n  where,\n");
+    printf("  <tvStandard> is one of ntsc, pal, secam, monochrome;\n");
+    printf("  <inputControllerType> is one of joystick, paddle, keypad;\n");
+    printf("  <cartridgeType> is one of 2K, 4K, CV, F8, F6, F4, FE, E0, FA, E7, F0;\n");
+    printf("  <startInDebuggerMode> is debug if you want to start in debug mode.\n");
+    printf("\n");
+    printf("Example: ");
+    printf("%s ./games/Berzerk.bin ntsc joystick 4K\n\n", emu_path);
+}
+
+EmulatorConfig parse_args( int argc, char *argv[] ) {
+
+    // default values
+    EmulatorConfig config = {
+        .gamePath = NULL,
+        .tv_standard = TV_NTSC,
+        .input_controller_type = INPUT_JOYSTICK,
+        .cartridge_type = CARTRIDGE_4K,
+        .start_in_debugger_mode = false
+    };
+
+    bool tv_standard_is_specified = false;
+    bool input_controller_type_is_specified = false;
+    bool cartridge_type_is_specified = false;
+
+    if (argc < 2) {
+        printf("Error: The game path is not specified.\n");
+        print_argument_requirements( argv[0] );
+        exit(1);
+    }
+
+    config.gamePath = argv[1];
+    for (int i = 2; i<argc; i++) {
+        
+        // tvStandard
+        if ( strcmp(argv[i], "ntsc")==0 || strcmp(argv[i], "NTSC")==0 || strcmp(argv[i], "Ntsc")==0 ) {
+            if (tv_standard_is_specified) {
+                printf("Error: Multiple values provided for <tvStandard>.\n");
+                exit(1);
+            }
+            tv_standard_is_specified = true;
+            config.tv_standard = TV_NTSC;
+        }
+        else if ( strcmp(argv[i], "pal")==0 || strcmp(argv[i], "PAL")==0 || strcmp(argv[i], "Pal")==0 ) {
+            if (tv_standard_is_specified) {
+                printf("Error: Multiple values provided for <tvStandard>.\n");
+                exit(1);
+            }
+            tv_standard_is_specified = true;
+            config.tv_standard = TV_PAL;
+        }
+        else if ( strcmp(argv[i], "secam")==0 || strcmp(argv[i], "SECAM")==0 || strcmp(argv[i], "Secam")==0 ) {
+            if (tv_standard_is_specified) {
+                printf("Error: Multiple values provided for <tvStandard>.\n");
+                exit(1);
+            }
+            tv_standard_is_specified = true;
+            config.tv_standard = TV_SECAM;
+        }
+        else if ( strcmp(argv[i], "monochrome")==0 || strcmp(argv[i], "MONOCHROME")==0 || strcmp(argv[i], "Monochrome")==0 || strcmp(argv[i], "MonoChrome")==0 ) {
+            if (tv_standard_is_specified) {
+                printf("Error: Multiple values provided for <tvStandard>.\n");
+                exit(1);
+            }
+            tv_standard_is_specified = true;
+            config.tv_standard = TV_MONOCHROME;
+        }
+
+        // inputControllerType
+        else if ( strcmp(argv[i], "joystick")==0 || strcmp(argv[i], "JOYSTICK")==0 || strcmp(argv[i], "Joystick")==0 ) {
+            if (input_controller_type_is_specified) {
+                printf("Error: Multiple values provided for <inputControllerType>.\n");
+                exit(1);
+            }
+            input_controller_type_is_specified = true;
+            config.input_controller_type = INPUT_JOYSTICK;
+        }
+        else if ( strcmp(argv[i], "paddle")==0 || strcmp(argv[i], "PADDLE")==0 || strcmp(argv[i], "Paddle")==0 ) {
+            if (input_controller_type_is_specified) {
+                printf("Error: Multiple values provided for <inputControllerType>.\n");
+                exit(1);
+            }
+            input_controller_type_is_specified = true;
+            config.input_controller_type = INPUT_PADDLE;
+        }
+        else if ( strcmp(argv[i], "keypad")==0 || strcmp(argv[i], "KEYPAD")==0 || strcmp(argv[i], "Keypad")==0 ) {
+            if (input_controller_type_is_specified) {
+                printf("Error: Multiple values provided for <inputControllerType>.\n");
+                exit(1);
+            }
+            input_controller_type_is_specified = true;
+            config.input_controller_type = INPUT_KEYPAD;
+        }
+
+        // cartridgeType
+        else if ( strcmp(argv[i], "2k")==0 || strcmp(argv[i], "2K")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_2K;
+        }
+        else if ( strcmp(argv[i], "4k")==0 || strcmp(argv[i], "4K")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_4K;
+        }
+        else if ( strcmp(argv[i], "cv")==0 || strcmp(argv[i], "CV")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_CV;
+        }
+        else if ( strcmp(argv[i], "f8")==0 || strcmp(argv[i], "F8")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_F8;
+        }
+        else if ( strcmp(argv[i], "f6")==0 || strcmp(argv[i], "F6")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_F6;
+        }
+        else if ( strcmp(argv[i], "f8")==0 || strcmp(argv[i], "F8")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_F8;
+        }
+        else if ( strcmp(argv[i], "f4")==0 || strcmp(argv[i], "F4")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_F4;
+        }
+        else if ( strcmp(argv[i], "fe")==0 || strcmp(argv[i], "FE")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_FE;
+        }
+        else if ( strcmp(argv[i], "e0")==0 || strcmp(argv[i], "E0")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_E0;
+        }
+        else if ( strcmp(argv[i], "fa")==0 || strcmp(argv[i], "FA")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_FA;
+        }
+        else if ( strcmp(argv[i], "e7")==0 || strcmp(argv[i], "E7")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_E7;
+        }
+        else if ( strcmp(argv[i], "f0")==0 || strcmp(argv[i], "F0")==0 ) {
+            if (cartridge_type_is_specified) {
+                printf("Error: Multiple values provided for <cartridgeType>.\n");
+                exit(1);
+            }
+            cartridge_type_is_specified = true;
+            config.cartridge_type = CARTRIDGE_F0;
+        }
+        
+        else if ( strcmp(argv[i], "debug")==0 || strcmp(argv[i], "DEBUG")==0 || strcmp(argv[i], "Debug")==0 ) {
+            config.start_in_debugger_mode = true;
+        }
+        
+    }
+
+    if ( config.input_controller_type == INPUT_JOYSTICK) {
+        puts("Left joystick movement keys: W A S D");
+        puts("Left joystick action keys: F C V");
+        puts("Right joystick movement keys: I J K L");
+        puts("Right joystick action keys: ; . /");
+    }
+    else if ( config.input_controller_type == INPUT_PADDLE ) {
+        puts("Paddle 1 action key: A");
+        puts("Paddle 1 increase pod angle key: F");
+        puts("Paddle 1 decrease pod angle key: D");
+        puts("");
+        puts("Paddle 2 action key: S");
+        puts("Paddle 2 increase pod angle key: V");
+        puts("Paddle 2 decrease pod angle key: C");
+        puts("");
+        puts("Paddle 3 action key: J");
+        puts("Paddle 3 increase pod angle key: ;");
+        puts("Paddle 3 decrease pod angle key: L");
+        puts("");
+        puts("Paddle 4 action key: K");
+        puts("Paddle 4 increase pod angle key: /");
+        puts("Paddle 4 decrease pod angle key: .");        
+    }
+    else if ( config.input_controller_type == INPUT_KEYPAD ) {
+        puts("Keys corresponding to keypad 1:");
+        puts("1 2 3");
+        puts("Q W E");
+        puts("A S D");
+        puts("Z X C");
+        puts("");
+        puts("Keys corresponding to keypad 2:");
+        puts("7 8 9");
+        puts("U I O");
+        puts("J K L");
+        puts("M , .");
+    } 
+
+    puts("\nNote: Reset, difficulty setting, color mode switches are not implemented yet.\n");
+
+    if (config.start_in_debugger_mode) {
+        puts("Debugger controls:");
+        puts("1 - Advance one color clock (not cpu clock)");
+        puts("2 - Advance one instruction");
+        puts("3 - Advance one scanline");
+        puts("4 - Advance one frame");
+        puts("5 - Resume/pause");
+    }
+
+    return config;
+}
+
+int main( int argc, char *argv[] ) {
 
     
 
-    int er = prepare_game("/home/korsan/proj/atari2600emu/atari_tests/example19.a26", TV_NTSC, CARTRIDGE_4K, INPUT_JOYSTICK, false); // normally CARTRIDGE_4K
+    EmulatorConfig config = parse_args(argc, argv);
+
+    
+
+    int er = prepare_game(config.gamePath, config.tv_standard, config.cartridge_type, config.input_controller_type, config.start_in_debugger_mode);
     if (er) return 1;
 
 
