@@ -48,6 +48,7 @@ To compile, just type "make". It assumes you have GCC, make installed. The depen
 - https://www.nesdev.org/extra_instructions.txt
 - https://www.nesdev.org/undocumented_opcodes.txt
 - To test sounds: https://forums.atariage.com/topic/123441-tone-toy-2008-find-new-sound-effects-for-your-games/
+- To test CPU: https://github.com/SingleStepTests/ProcessorTests/tree/main/6502
 - RIOT datasheet, needed for timer: http://retro.hansotten.nl//uploads/riot653x/ds_6532.pdf
 - To test bankswitching: https://forums.atariage.com/topic/141764-bankswitching-demostemplates/page/4/
 
